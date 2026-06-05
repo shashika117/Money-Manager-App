@@ -91,13 +91,13 @@
         const SUPABASE_URL = "https://mjzwroykbdssyopcggrk.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_L38MRSyhnIdffvl0QgjWzA_1-gCcBAf";
 
-        let supabase;
+        // Distinct variable name to prevent naming clashes
+        let supabaseClient = null;
         let currentChart = null;
 
-        // Initialize Supabase Client Connection Safely
         try {
             if (window.supabase) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } else {
                 console.error("External Supabase CDN library is unreachable.");
             }
@@ -114,8 +114,8 @@
         });
 
         window.onload = async () => {
-            if (supabase) {
-                const { data: { session } } = await supabase.auth.getSession();
+            if (supabaseClient) {
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 toggleScreens(session);
             }
         };
@@ -142,7 +142,12 @@
             if (errorMsg) errorMsg.classList.add('hidden');
 
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (!supabaseClient) {
+                    alert("Supabase connection layer is inactive.");
+                    btn.innerText = "Sign In";
+                    return;
+                }
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
                 if (error) {
                     if (errorMsg) {
@@ -160,16 +165,16 @@
         }
 
         async function handleLogout() {
-            if (supabase) {
-                await supabase.auth.signOut();
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
                 toggleScreens(null);
             }
         }
 
         async function renderChart() {
-            if (!supabase) return;
+            if (!supabaseClient) return;
             
-            const { data: transactions, error } = await supabase
+            const { data: transactions, error } = await supabaseClient
                 .from('transactions')
                 .select('transaction_date, amount')
                 .order('transaction_date', { ascending: true });
@@ -219,6 +224,8 @@
         }
 
         async function submitTransaction() {
+            if (!supabaseClient) return;
+            
             const amount = parseFloat(document.getElementById('amount').value);
             const txDate = document.getElementById('tx-date').value;
             const category = document.getElementById('category').value;
@@ -236,31 +243,37 @@
             btn.disabled = true;
             btn.innerText = "Saving...";
 
-            const { data: { user } } = await supabase.auth.getUser();
+            try {
+                const { data: { user } } = await supabaseClient.auth.getUser();
 
-            const { error } = await supabase.from('transactions').insert([
-                {
-                    transaction_date: txDate,
-                    amount: amount,
-                    category: category,
-                    account_id: accountId,
-                    description: description,
-                    entered_by: user.email
+                const { error } = await supabaseClient.from('transactions').insert([
+                    {
+                        transaction_date: txDate,
+                        amount: amount,
+                        category: category,
+                        account_id: accountId,
+                        description: description,
+                        entered_by: user.email
+                    }
+                ]);
+
+                btn.disabled = false;
+                btn.innerText = "Save Transaction";
+
+                if (error) {
+                    statusMsg.innerText = `❌ Error: ${error.message}`;
+                    statusMsg.className = "text-sm text-center text-rose-400 mt-2";
+                } else {
+                    statusMsg.innerText = "✅ Saved successfully!";
+                    statusMsg.className = "text-sm text-center text-emerald-400 mt-2";
+                    document.getElementById('amount').value = "";
+                    document.getElementById('description').value = "";
+                    renderChart(); 
                 }
-            ]);
-
-            btn.disabled = false;
-            btn.innerText = "Save Transaction";
-
-            if (error) {
-                statusMsg.innerText = `❌ Error: ${error.message}`;
-                statusMsg.className = "text-sm text-center text-rose-400 mt-2";
-            } else {
-                statusMsg.innerText = "✅ Saved successfully!";
-                statusMsg.className = "text-sm text-center text-emerald-400 mt-2";
-                document.getElementById('amount').value = "";
-                document.getElementById('description').value = "";
-                renderChart(); 
+            } catch (err) {
+                console.error("Submission error:", err);
+                btn.disabled = false;
+                btn.innerText = "Save Transaction";
             }
         }
     </script>
