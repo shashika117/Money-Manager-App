@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Ledger</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+
+    <div id="login-screen" class="flex-grow flex flex-col justify-center px-6 max-w-md mx-auto w-full">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
+            <h2 class="text-2xl font-bold text-center mb-6 text-emerald-400">👪 Family Ledger Login</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Email Address</label>
+                    <input type="email" id="login-email" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Password</label>
+                    <input type="password" id="login-password" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <button onclick="handleLogin()" id="btn-login" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 px-4 rounded-lg transition dynamic shadow-lg">Sign In</button>
+                <p id="login-error" class="text-rose-400 text-sm text-center hidden mt-2"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden flex-grow max-w-md mx-auto w-full px-4 pt-6 pb-24">
+        <header class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-xl font-bold text-slate-100">Add Transaction</h1>
+                <p id="user-badge" class="text-xs text-emerald-400 font-medium"></p>
+            </div>
+            <button onclick="handleLogout()" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Sign Out</button>
+        </header>
+
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Amount (LKR)</label>
+                <input type="number" step="0.01" id="amount" placeholder="Use negative (-) for expenses" class="w-full p-4 text-xl rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Transaction Date</label>
+                <input type="date" id="tx-date" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Category</label>
+                <select id="category" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                    <option value="Groceries">Groceries</option>
+                    <option value="Fuel & Transport">Fuel & Transport</option>
+                    <option value="Utilities">Utilities & Bills</option>
+                    <option value="Salary & Income">Salary & Income</option>
+                    <option value="Dining Out">Dining Out</option>
+                    <option value="Medical">Medical</option>
+                    <option value="Investments">Investments</option>
+                    <option value="Other Expenses">Other Expenses</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Source Account ID</label>
+                <input type="number" id="account-id" value="1" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500" placeholder="e.g., 1">
+                <span class="text-[10px] text-slate-500 mt-1 block">Account links are managed via your Accounts database table.</span>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Description / Notes</label>
+                <input type="text" id="description" placeholder="e.g., Keells Supermarket purchase" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <button onclick="submitTransaction()" id="btn-submit" class="w-full mt-2 bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-bold p-4 rounded-xl shadow-lg transition duration-200 text-center">
+                Save Transaction
+            </button>
+            <p id="tx-status" class="text-sm text-center font-medium mt-2"></p>
+        </div>
+    </div>
+
+    <script>
+        // 1. REPLACE THESE VALUES WITH YOUR COPIED CONFIGURATIONS FROM STEP 3.2
+        const SUPABASE_URL = "https://mjzwroykbdssyopcggrk.supabase.co/rest/v1/";
+        const SUPABASE_ANON_KEY = "sb_publishable_L38MRSyhnIdffvl0QgjWzA_1-gCcBAf";
+
+        // Initialize Supabase client
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Pre-fill date input with today's date automatically
+        document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+
+        // Check user session on page load
+        window.onload = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            toggleScreens(session);
+        };
+
+        function toggleScreens(session) {
+            if (session) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                document.getElementById('user-badge').innerText = `Logged in as: ${session.user.email}`;
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('app-screen').classList.add('hidden');
+            }
+        }
+
+        // Login Action Handler
+        async function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const errorMsg = document.getElementById('login-error');
+            const btn = document.getElementById('btn-login');
+
+            btn.innerText = "Signing in...";
+            errorMsg.classList.add('hidden');
+
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                errorMsg.innerText = error.message;
+                errorMsg.classList.remove('hidden');
+                btn.innerText = "Sign In";
+            } else {
+                toggleScreens(data.session);
+            }
+        }
+
+        // Logout Action Handler
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            toggleScreens(null);
+        }
+
+        // Submit Transaction to PostgreSQL Database Engine
+        async function submitTransaction() {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const txDate = document.getElementById('tx-date').value;
+            const category = document.getElementById('category').value;
+            const accountId = parseInt(document.getElementById('account-id').value);
+            const description = document.getElementById('description').value;
+            const statusMsg = document.getElementById('tx-status');
+            const btn = document.getElementById('btn-submit');
+
+            if (!amount || !txDate || !accountId) {
+                statusMsg.innerText = "⚠️ Please fill out Amount, Date, and Account ID.";
+                statusMsg.className = "text-sm text-center text-amber-400 mt-2";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Saving to Server...";
+            statusMsg.innerText = "";
+
+            // Fetch the currently logged in user to tag who entered this row
+            const { data: { user } } = await supabase.auth.getUser();
+
+            const { data, error } = await supabase.from('transactions').insert([
+                {
+                    transaction_date: txDate,
+                    amount: amount,
+                    category: category,
+                    account_id: accountId,
+                    description: description,
+                    entered_by: user.email // Captures the exact user context automatically
+                }
+            ]);
+
+            btn.disabled = false;
+            btn.innerText = "Save Transaction";
+
+            if (error) {
+                statusMsg.innerText = `❌ Error: ${error.message}`;
+                statusMsg.className = "text-sm text-center text-rose-400 mt-2";
+            } else {
+                statusMsg.innerText = "✅ Transaction saved successfully!";
+                statusMsg.className = "text-sm text-center text-emerald-400 mt-2";
+                // Reset inputs except date
+                document.getElementById('amount').value = "";
+                document.getElementById('description').value = "";
+            }
+        }
+    </script>
+</body>
+</html>
