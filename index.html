@@ -1,246 +1,99 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Money Manager Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+<script>
+    // 1. Production Verified Connectivity Keys
+    const SUPABASE_URL = "https://mjzwroykbdssyopcggrk.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_L38MRSyhnIdffvl0QgjWzA_1-gCcBAf";
+    
+    let supabase;
 
-    <div id="login-screen" class="flex-grow flex flex-col justify-center px-6 max-w-md mx-auto w-full">
-        <div class="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
-            <h2 class="text-2xl font-bold text-center mb-6 text-emerald-400">👪 Money Manager Login</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Email Address</label>
-                    <input type="email" id="login-email" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Password</label>
-                    <input type="password" id="login-password" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-                </div>
-                <button onclick="handleLogin()" id="btn-login" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg">Sign In</button>
-                <p id="login-error" class="text-rose-400 text-sm text-center hidden mt-2"></p>
-            </div>
-        </div>
-    </div>
+    // 2. Safe Client Initialization Block (With Crash-Protection)
+    try {
+        console.log("Initializing Supabase client connection...");
+        if (!window.supabase) {
+            throw new Error("The Supabase CDN script did not load. Verify that the CDN script tag '<script src=\"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2\"></script>' is placed ABOVE this code block.");
+        }
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log("Supabase client linked successfully.");
+    } catch (initError) {
+        console.error("Initialization Halt:", initError);
+        alert("App Initialization Error:\n" + initError.message);
+    }
 
-    <div id="app-screen" class="hidden flex-grow max-w-md mx-auto w-full px-4 pt-6 pb-24 space-y-6">
-        <header class="flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold text-slate-100">Money Manager</h1>
-                <p id="user-badge" class="text-xs text-emerald-400 font-medium"></p>
-            </div>
-            <button onclick="handleLogout()" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Sign Out</button>
-        </header>
+    // 3. Defensive DOM Setup (Prevents fatal page-load failure if IDs are missing)
+    document.addEventListener("DOMContentLoaded", () => {
+        const dateInput = document.getElementById('tx-date');
+        if (dateInput) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+        } else {
+            console.warn("Element with ID 'tx-date' not present in the current DOM state.");
+        }
+    });
 
-        <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl">
-            <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Net Worth Trend</h3>
-            <div class="relative h-48 w-full">
-                <canvas id="netWorthChart"></canvas>
-            </div>
-        </div>
+    // 4. Guarded Login Action Handler
+    async function handleLogin() {
+        console.log("Sign In action requested.");
+        const emailInput = document.getElementById('login-email');
+        const passwordInput = document.getElementById('login-password');
+        const errorMsg = document.getElementById('login-error');
+        const btn = document.getElementById('btn-login');
 
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
-            <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider border-b border-slate-700 pb-2">New Entry</h3>
-            
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Amount (LKR)</label>
-                <input type="number" step="0.01" id="amount" placeholder="Negative (-) for expenses" class="w-full p-4 text-xl rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500">
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Date</label>
-                    <input type="date" id="tx-date" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Account ID</label>
-                    <input type="number" id="account-id" value="1" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Category</label>
-                <select id="category" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-                    <option value="Groceries">Groceries</option>
-                    <option value="Fuel & Transport">Fuel & Transport</option>
-                    <option value="Utilities">Utilities & Bills</option>
-                    <option value="Salary & Income">Salary & Income</option>
-                    <option value="Dining Out">Dining Out</option>
-                    <option value="Other Expenses">Other Expenses</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Description</label>
-                <input type="text" id="description" placeholder="e.g., Keells Market" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-            </div>
-
-            <button onclick="submitTransaction()" id="btn-submit" class="w-full bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-bold p-4 rounded-xl shadow-lg transition duration-200">
-                Save Transaction
-            </button>
-            <p id="tx-status" class="text-sm text-center font-medium mt-2"></p>
-        </div>
-    </div>
-
-    <script>
-        // Production Verified Connectivity Keys
-        const SUPABASE_URL = "https://mjzwroykbdssyopcggrk.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_L38MRSyhnIdffvl0QgjWzA_1-gCcBAf";
-
-        // Fixed Initialization Block to prevent CDN variable name conflicts
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let currentChart = null;
-
-        document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
-
-        window.onload = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            toggleScreens(session);
-        };
-
-        function toggleScreens(session) {
-            if (session) {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-screen').classList.remove('hidden');
-                document.getElementById('user-badge').innerText = `Logged in as: ${session.user.email}`;
-                renderChart(); // Load the database metrics chart immediately upon login
-            } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('app-screen').classList.add('hidden');
-            }
+        if (!emailInput || !passwordInput) {
+            alert("Structural Error: HTML login inputs could not be detected.");
+            return;
         }
 
-        async function handleLogin() {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const errorMsg = document.getElementById('login-error');
-            const btn = document.getElementById('btn-login');
+        const email = emailInput.value;
+        const password = passwordInput.value;
 
-            btn.innerText = "Signing in...";
-            errorMsg.classList.add('hidden');
+        // Visual loading feedback indicators
+        btn.innerText = "Signing in...";
+        btn.disabled = true;
+        if (errorMsg) errorMsg.classList.add('hidden');
 
+        try {
+            if (!supabase) {
+                throw new Error("Supabase connection layer is inactive. Check initial config setup.");
+            }
+            
+            console.log("Sending credentials to authentication ledger...");
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
             if (error) {
-                errorMsg.innerText = error.message;
-                errorMsg.classList.remove('hidden');
+                console.error("Supabase Auth Rejection:", error);
+                if (errorMsg) {
+                    errorMsg.innerText = error.message;
+                    errorMsg.classList.remove('hidden');
+                } else {
+                    alert("Authentication Rejected:\n" + error.message);
+                }
                 btn.innerText = "Sign In";
+                btn.disabled = false;
             } else {
-                toggleScreens(data.session);
-            }
-        }
-
-        async function handleLogout() {
-            await supabase.auth.signOut();
-            toggleScreens(null);
-        }
-
-        // HIGH-PERFORMANCE CHART CALCULATOR (Bypasses DAX Engine Lag)
-        async function renderChart() {
-            const { data: transactions, error } = await supabase
-                .from('transactions')
-                .select('transaction_date, amount')
-                .order('transaction_date', { ascending: true });
-
-            if (error || !transactions) return;
-
-            // Group transactions by date and calculate running total cumulative Net Worth
-            let cumulativeSum = 0;
-            const chartData = {};
-
-            transactions.forEach(tx => {
-                cumulativeSum += parseFloat(tx.amount);
-                chartData[tx.transaction_date] = cumulativeSum; // O(N) linear single pass calculation
-            });
-
-            const labels = Object.keys(chartData);
-            const dataValues = Object.values(chartData);
-
-            const ctx = document.getElementById('netWorthChart').getContext('2d');
-            
-            if (currentChart) {
-                currentChart.destroy(); // Clear old chart instance before redraw
-            }
-
-            // Draw a highly responsive Mobile Chart
-            currentChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Net Worth (LKR)',
-                        data: dataValues,
-                        borderColor: '#34d399', // Emerald line color
-                        backgroundColor: 'rgba(52, 211, 153, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
-                    }
+                console.log("Authentication complete. Token granted.", data.session);
+                if (typeof toggleScreens === "function") {
+                    toggleScreens(data.session);
+                } else {
+                    alert("Success, but missing 'toggleScreens' view navigation function.");
                 }
-            });
-        }
-
-        async function submitTransaction() {
-            const amount = parseFloat(document.getElementById('amount').value);
-            const txDate = document.getElementById('tx-date').value;
-            const category = document.getElementById('category').value;
-            const accountId = parseInt(document.getElementById('account-id').value);
-            const description = document.getElementById('description').value;
-            const statusMsg = document.getElementById('tx-status');
-            const btn = document.getElementById('btn-submit');
-
-            if (!amount || !txDate || !accountId) {
-                statusMsg.innerText = "⚠️ Fill out Amount, Date, and Account ID.";
-                statusMsg.className = "text-sm text-center text-amber-400 mt-2";
-                return;
             }
-
-            btn.disabled = true;
-            btn.innerText = "Saving...";
-
-            const { data: { user } } = await supabase.auth.getUser();
-
-            const { error } = await supabase.from('transactions').insert([
-                {
-                    transaction_date: txDate,
-                    amount: amount,
-                    category: category,
-                    account_id: accountId,
-                    description: description,
-                    entered_by: user.email
-                }
-            ]);
-
+        } catch (runError) {
+            console.error("Runtime exception thrown:", runError);
+            alert("Runtime Error Processing Sign-In:\n" + runError.message);
+            btn.innerText = "Sign In";
             btn.disabled = false;
-            btn.innerText = "Save Transaction";
-
-            if (error) {
-                statusMsg.innerText = `❌ Error: ${error.message}`;
-                statusMsg.className = "text-sm text-center text-rose-400 mt-2";
-            } else {
-                statusMsg.innerText = "✅ Saved successfully!";
-                statusMsg.className = "text-sm text-center text-emerald-400 mt-2";
-                document.getElementById('amount').value = "";
-                document.getElementById('description').value = "";
-                
-                // Instantly re-calculate and animate the chart with the new transaction row data
-                renderChart(); 
-            }
         }
-    </script>
-</body>
-</html>
+    }
+
+    // Auto-Login Session Listener
+    window.addEventListener("load", async () => {
+        try {
+            if (supabase) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session && typeof toggleScreens === "function") {
+                    toggleScreens(session);
+                }
+            }
+        } catch (sessionError) {
+            console.error("Failed to fetch active browser session state:", sessionError);
+        }
+    });
+</script>
