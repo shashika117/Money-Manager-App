@@ -22,7 +22,7 @@
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Password</label>
                     <input type="password" id="login-password" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
                 </div>
-                <button onclick="handleLogin()" id="btn-login" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 px-4 rounded-lg transition dynamic shadow-lg">Sign In</button>
+                <button onclick="handleLogin()" id="btn-login" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg">Sign In</button>
                 <p id="login-error" class="text-rose-400 text-sm text-center hidden mt-2"></p>
             </div>
         </div>
@@ -92,7 +92,8 @@
         const SUPABASE_URL = "https://mjzwroykbdssyopcggrk.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_L38MRSyhnIdffvl0QgjWzA_1-gCcBAf";
 
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Fixed Initialization Block to prevent CDN variable name conflicts
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentChart = null;
 
         document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
@@ -141,7 +142,6 @@
 
         // HIGH-PERFORMANCE CHART CALCULATOR (Bypasses DAX Engine Lag)
         async function renderChart() {
-            // Fetch transactions sorted chronologically by our index
             const { data: transactions, error } = await supabase
                 .from('transactions')
                 .select('transaction_date, amount')
