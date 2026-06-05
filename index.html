@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Ledger</title>
+    <title>Money Manager Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
 
     <div id="login-screen" class="flex-grow flex flex-col justify-center px-6 max-w-md mx-auto w-full">
         <div class="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
-            <h2 class="text-2xl font-bold text-center mb-6 text-emerald-400">👪 Family Ledger Login</h2>
+            <h2 class="text-2xl font-bold text-center mb-6 text-emerald-400">👪 Money Manager Login</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Email Address</label>
@@ -27,24 +28,39 @@
         </div>
     </div>
 
-    <div id="app-screen" class="hidden flex-grow max-w-md mx-auto w-full px-4 pt-6 pb-24">
-        <header class="flex justify-between items-center mb-6">
+    <div id="app-screen" class="hidden flex-grow max-w-md mx-auto w-full px-4 pt-6 pb-24 space-y-6">
+        <header class="flex justify-between items-center">
             <div>
-                <h1 class="text-xl font-bold text-slate-100">Add Transaction</h1>
+                <h1 class="text-xl font-bold text-slate-100">Money Manager</h1>
                 <p id="user-badge" class="text-xs text-emerald-400 font-medium"></p>
             </div>
             <button onclick="handleLogout()" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Sign Out</button>
         </header>
 
+        <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl">
+            <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Net Worth Trend</h3>
+            <div class="relative h-48 w-full">
+                <canvas id="netWorthChart"></canvas>
+            </div>
+        </div>
+
         <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+            <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider border-b border-slate-700 pb-2">New Entry</h3>
+            
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Amount (LKR)</label>
-                <input type="number" step="0.01" id="amount" placeholder="Use negative (-) for expenses" class="w-full p-4 text-xl rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500">
+                <input type="number" step="0.01" id="amount" placeholder="Negative (-) for expenses" class="w-full p-4 text-xl rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500">
             </div>
 
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Transaction Date</label>
-                <input type="date" id="tx-date" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Date</label>
+                    <input type="date" id="tx-date" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Account ID</label>
+                    <input type="number" id="account-id" value="1" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
+                </div>
             </div>
 
             <div>
@@ -55,24 +71,16 @@
                     <option value="Utilities">Utilities & Bills</option>
                     <option value="Salary & Income">Salary & Income</option>
                     <option value="Dining Out">Dining Out</option>
-                    <option value="Medical">Medical</option>
-                    <option value="Investments">Investments</option>
                     <option value="Other Expenses">Other Expenses</option>
                 </select>
             </div>
 
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Source Account ID</label>
-                <input type="number" id="account-id" value="1" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500" placeholder="e.g., 1">
-                <span class="text-[10px] text-slate-500 mt-1 block">Account links are managed via your Accounts database table.</span>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Description</label>
+                <input type="text" id="description" placeholder="e.g., Keells Market" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
             </div>
 
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Description / Notes</label>
-                <input type="text" id="description" placeholder="e.g., Keells Supermarket purchase" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-            </div>
-
-            <button onclick="submitTransaction()" id="btn-submit" class="w-full mt-2 bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-bold p-4 rounded-xl shadow-lg transition duration-200 text-center">
+            <button onclick="submitTransaction()" id="btn-submit" class="w-full bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-bold p-4 rounded-xl shadow-lg transition duration-200">
                 Save Transaction
             </button>
             <p id="tx-status" class="text-sm text-center font-medium mt-2"></p>
@@ -80,17 +88,15 @@
     </div>
 
     <script>
-        // 1. REPLACE THESE VALUES WITH YOUR COPIED CONFIGURATIONS FROM STEP 3.2
+        // Production Verified Connectivity Keys
         const SUPABASE_URL = "https://mjzwroykbdssyopcggrk.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_L38MRSyhnIdffvl0QgjWzA_1-gCcBAf";
 
-        // Initialize Supabase client
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentChart = null;
 
-        // Pre-fill date input with today's date automatically
         document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
 
-        // Check user session on page load
         window.onload = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             toggleScreens(session);
@@ -101,13 +107,13 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
                 document.getElementById('user-badge').innerText = `Logged in as: ${session.user.email}`;
+                renderChart(); // Load the database metrics chart immediately upon login
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
             }
         }
 
-        // Login Action Handler
         async function handleLogin() {
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
@@ -128,13 +134,66 @@
             }
         }
 
-        // Logout Action Handler
         async function handleLogout() {
             await supabase.auth.signOut();
             toggleScreens(null);
         }
 
-        // Submit Transaction to PostgreSQL Database Engine
+        // HIGH-PERFORMANCE CHART CALCULATOR (Bypasses DAX Engine Lag)
+        async function renderChart() {
+            // Fetch transactions sorted chronologically by our index
+            const { data: transactions, error } = await supabase
+                .from('transactions')
+                .select('transaction_date, amount')
+                .order('transaction_date', { ascending: true });
+
+            if (error || !transactions) return;
+
+            // Group transactions by date and calculate running total cumulative Net Worth
+            let cumulativeSum = 0;
+            const chartData = {};
+
+            transactions.forEach(tx => {
+                cumulativeSum += parseFloat(tx.amount);
+                chartData[tx.transaction_date] = cumulativeSum; // O(N) linear single pass calculation
+            });
+
+            const labels = Object.keys(chartData);
+            const dataValues = Object.values(chartData);
+
+            const ctx = document.getElementById('netWorthChart').getContext('2d');
+            
+            if (currentChart) {
+                currentChart.destroy(); // Clear old chart instance before redraw
+            }
+
+            // Draw a highly responsive Mobile Chart
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Net Worth (LKR)',
+                        data: dataValues,
+                        borderColor: '#34d399', // Emerald line color
+                        backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
         async function submitTransaction() {
             const amount = parseFloat(document.getElementById('amount').value);
             const txDate = document.getElementById('tx-date').value;
@@ -145,26 +204,24 @@
             const btn = document.getElementById('btn-submit');
 
             if (!amount || !txDate || !accountId) {
-                statusMsg.innerText = "⚠️ Please fill out Amount, Date, and Account ID.";
+                statusMsg.innerText = "⚠️ Fill out Amount, Date, and Account ID.";
                 statusMsg.className = "text-sm text-center text-amber-400 mt-2";
                 return;
             }
 
             btn.disabled = true;
-            btn.innerText = "Saving to Server...";
-            statusMsg.innerText = "";
+            btn.innerText = "Saving...";
 
-            // Fetch the currently logged in user to tag who entered this row
             const { data: { user } } = await supabase.auth.getUser();
 
-            const { data, error } = await supabase.from('transactions').insert([
+            const { error } = await supabase.from('transactions').insert([
                 {
                     transaction_date: txDate,
                     amount: amount,
                     category: category,
                     account_id: accountId,
                     description: description,
-                    entered_by: user.email // Captures the exact user context automatically
+                    entered_by: user.email
                 }
             ]);
 
@@ -175,11 +232,13 @@
                 statusMsg.innerText = `❌ Error: ${error.message}`;
                 statusMsg.className = "text-sm text-center text-rose-400 mt-2";
             } else {
-                statusMsg.innerText = "✅ Transaction saved successfully!";
+                statusMsg.innerText = "✅ Saved successfully!";
                 statusMsg.className = "text-sm text-center text-emerald-400 mt-2";
-                // Reset inputs except date
                 document.getElementById('amount').value = "";
                 document.getElementById('description').value = "";
+                
+                // Instantly re-calculate and animate the chart with the new transaction row data
+                renderChart(); 
             }
         }
     </script>
