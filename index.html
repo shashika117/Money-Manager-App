@@ -3,114 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Money Manager Dashboard</title>
+    <title>Money Manager Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans selection:bg-emerald-500 selection:text-slate-950">
 
-    <div id="login-screen" class="flex-grow flex flex-col justify-center px-6 max-w-md mx-auto w-full">
-        <div class="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
-            <h2 class="text-2xl font-bold text-center mb-6 text-emerald-400">👪 Money Manager Login</h2>
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-lg font-black tracking-tight bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">MONEY MANAGER PRO</h1>
+                <p id="user-badge" class="text-[10px] text-slate-400 font-mono"></p>
+            </div>
+            <button onclick="handleLogout()" class="text-xs bg-slate-700 hover:bg-rose-600/20 hover:text-rose-400 border border-slate-600 hover:border-rose-500/30 px-3 py-1.5 rounded-xl transition-all duration-200 cursor-pointer">Sign Out</button>
+        </div>
+    </header>
+
+    <div id="login-screen" class="flex-grow flex flex-col justify-center px-6 max-w-md mx-auto w-full py-12">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md">
+            <h2 class="text-2xl font-bold text-center mb-6 text-emerald-400 tracking-tight">👪 Secure Workspace Access</h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Email Address</label>
-                    <input type="email" id="login-email" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Identity Node / Email</label>
+                    <input type="email" id="login-email" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition-colors">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Password</label>
-                    <input type="password" id="login-password" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Security Key / Password</label>
+                    <input type="password" id="login-password" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition-colors">
                 </div>
-                <button onclick="handleLogin()" id="btn-login" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg">Sign In</button>
-                <p id="login-error" class="text-rose-400 text-sm text-center hidden mt-2"></p>
+                <button onclick="handleLogin()" id="btn-login" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold py-3.5 px-4 rounded-xl transition duration-200 shadow-lg shadow-emerald-500/10 cursor-pointer">Verify Credentials</button>
+                <p id="login-error" class="text-rose-400 text-xs text-center hidden mt-2 font-medium"></p>
             </div>
         </div>
     </div>
 
-    <div id="app-screen" class="hidden flex-grow max-w-md mx-auto w-full px-4 pt-6 pb-24 space-y-6">
-        <header class="flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold text-slate-100">Money Manager</h1>
-                <p id="user-badge" class="text-xs text-emerald-400 font-medium"></p>
+    <main id="app-screen" class="hidden flex-grow max-w-6xl mx-auto w-full px-4 py-6 space-y-6 mb-24">
+        
+        <section id="panel-home" class="app-panel space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Monthly Inflow</h3>
+                    <p class="text-2xl font-black text-emerald-400 mt-1 font-mono">+ LKR 0.00</p>
+                </div>
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Monthly Outflow</h3>
+                    <p class="text-2xl font-black text-rose-400 mt-1 font-mono">- LKR 0.00</p>
+                </div>
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Net Operational Delta</h3>
+                    <p class="text-2xl font-black text-teal-400 mt-1 font-mono">LKR 0.00</p>
+                </div>
             </div>
-            <button onclick="handleLogout()" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Sign Out</button>
-        </header>
-
-        <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl">
-            <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Net Worth Trend</h3>
-            <div class="relative h-48 w-full">
-                <canvas id="netWorthChart"></canvas>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl max-w-xl mx-auto space-y-4">
+                <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider border-b border-slate-700 pb-2">Rapid Transaction Engine</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Amount (LKR)</label>
+                        <input type="number" step="0.01" id="amount" placeholder="(-) Expenses" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Execution Date</label>
+                        <input type="date" id="tx-date" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Target Account</label>
+                        <select id="account-id" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+                            <option value="1">Primary Bank Account</option>
+                            <option value="2">Physical Cash Pocket</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Classification Cluster</label>
+                        <select id="category" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+                            <option value="Groceries">Groceries</option>
+                            <option value="Fuel & Transport">Fuel & Transport</option>
+                            <option value="Utilities">Utilities & Bills</option>
+                            <option value="Salary & Income">Salary & Income</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Meta Description / Notes</label>
+                    <input type="text" id="description" placeholder="Vendor specifics..." class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <button onclick="submitTransaction()" id="btn-submit" class="w-full bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-extrabold p-3 rounded-xl shadow-lg transition duration-200 cursor-pointer">Commit Transaction Ledger</button>
+                <p id="tx-status" class="text-xs text-center font-medium mt-2"></p>
             </div>
-        </div>
+        </section>
 
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
-            <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider border-b border-slate-700 pb-2">New Entry</h3>
+        <section id="panel-transactions" class="app-panel hidden space-y-4">
+            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col sm:flex-row gap-3 justify-between items-center shadow-xl">
+                <div class="flex items-center gap-2">
+                    <button class="bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-600">&larr; Prev</button>
+                    <span class="text-sm font-mono font-bold text-emerald-400">June 2026</span>
+                    <button class="bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-600">Next &rarr;</button>
+                </div>
+                <input type="text" id="tx-search" oninput="filterTransactionsTable()" placeholder="🔍 Query Keyword / Note..." class="bg-slate-900 text-sm px-4 py-2 rounded-xl border border-slate-700 text-white focus:outline-none focus:border-emerald-500 w-full sm:w-64">
+            </div>
             
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Amount (LKR)</label>
-                <input type="number" step="0.01" id="amount" placeholder="Negative (-) for expenses" class="w-full p-4 text-xl rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:outline-none focus:border-emerald-500">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900 text-[11px] uppercase font-bold tracking-wider text-slate-400 border-b border-slate-700">
+                                <th class="p-4">Timeline</th>
+                                <th class="p-4">Classification</th>
+                                <th class="p-4">Description Ledger</th>
+                                <th class="p-4 text-right">Value Mapping</th>
+                                <th class="p-4 text-center">Action Overrides</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-transaction-table-body" class="divide-y divide-slate-700/50 font-sans text-sm">
+                            </tbody>
+                    </table>
+                </div>
             </div>
+        </section>
 
-            <div class="grid grid-cols-2 gap-3">
+        <section id="panel-accounts" class="app-panel hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 cursor-pointer hover:border-emerald-500 transition-colors">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Liquid Banking</span>
+                    <h4 class="text-lg font-bold text-slate-100 mt-1">Sampath Bank</h4>
+                    <p class="font-mono text-emerald-400 font-bold text-sm mt-2">LKR 450,000.00</p>
+                </div>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Net Worth Vector Over Time</h3>
+                <div class="relative h-64 w-full"><canvas id="netWorthChart"></canvas></div>
+            </div>
+        </section>
+
+        <section id="panel-cashflow" class="app-panel hidden space-y-6">
+            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex gap-4 items-center">
+                <span class="text-xs text-slate-400 font-bold uppercase">Chronological Range:</span>
+                <input type="date" class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white">
+                <span class="text-xs text-slate-500 font-bold">to</span>
+                <input type="date" class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white">
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
+                <div class="relative h-72 w-full"><canvas id="cashflowChart"></canvas></div>
+            </div>
+        </section>
+
+        <section id="panel-statistics" class="app-panel hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                    <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-4">Historical Spend Vectors (Current vs Past Month)</h3>
+                    <div class="relative h-60 w-full"><canvas id="statsComparisonChart"></canvas></div>
+                </div>
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                    <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-4">Cluster Share Breakdown</h3>
+                    <div class="relative h-60 w-full"><canvas id="statsPieChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="panel-budget" class="app-panel hidden space-y-4">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-100">Groceries Allocation Cluster</h4>
+                        <p class="text-xs text-slate-400 mt-0.5">Spent LKR 12,500 of LKR 40,000</p>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-amber-400">LKR 27,500 Left</span>
+                </div>
+                <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                    <div class="bg-amber-400 h-full w-[31%] rounded-full"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="panel-goals" class="app-panel hidden grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4 shadow-xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="text-base font-bold text-slate-100">Build Consultation Core Capital</h4>
+                        <p class="text-[10px] text-slate-400 font-mono mt-0.5">Deadline: Feb 2029</p>
+                    </div>
+                    <span class="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-lg border border-emerald-500/20 font-bold font-mono">15%</span>
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs font-mono"><span class="text-slate-400">Saved:</span><span class="text-slate-200">LKR 600,000</span></div>
+                    <div class="flex justify-between text-xs font-mono"><span class="text-slate-400">Target:</span><span class="text-slate-200">LKR 4,000,000</span></div>
+                </div>
+                <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                    <div class="bg-emerald-400 h-full w-[15%] rounded-full"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="editor-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-5 border-b border-slate-700 bg-slate-900/50 flex justify-between items-center">
+                <h3 class="text-sm font-black text-emerald-400 uppercase tracking-wider">Modify Transaction Record</h3>
+                <button onclick="closeEditorModal()" class="text-slate-400 hover:text-white cursor-pointer text-xl font-bold">&times;</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="edit-tx-id">
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Date</label>
-                    <input type="date" id="tx-date" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Financial Value Amount</label>
+                    <input type="number" step="0.01" id="edit-tx-amount" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:border-emerald-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Account ID</label>
-                    <input type="number" id="account-id" value="1" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Timeline Timestamp</label>
+                    <input type="date" id="edit-tx-date" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono focus:border-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Category Classification</label>
+                    <input type="text" id="edit-tx-category" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:border-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Description / Note Ledger</label>
+                    <input type="text" id="edit-tx-description" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:border-emerald-500 focus:outline-none">
                 </div>
             </div>
-
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Category</label>
-                <select id="category" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-                    <option value="Groceries">Groceries</option>
-                    <option value="Fuel & Transport">Fuel & Transport</option>
-                    <option value="Utilities">Utilities & Bills</option>
-                    <option value="Salary & Income">Salary & Income</option>
-                    <option value="Dining Out">Dining Out</option>
-                    <option value="Other Expenses">Other Expenses</option>
-                </select>
+            <div class="p-4 bg-slate-900/40 border-t border-slate-700 flex gap-3 justify-end">
+                <button onclick="closeEditorModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-700 cursor-pointer">Cancel</button>
+                <button onclick="commitTransactionOverride()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-500 cursor-pointer">Save Changes</button>
             </div>
-
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Description</label>
-                <input type="text" id="description" placeholder="e.g., Keells Market" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-            </div>
-
-            <button onclick="submitTransaction()" id="btn-submit" class="w-full bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-bold p-4 rounded-xl shadow-lg transition duration-200">
-                Save Transaction
-            </button>
-            <p id="tx-status" class="text-sm text-center font-medium mt-2"></p>
         </div>
     </div>
+
+    <nav id="app-navigation-bar" class="hidden bg-slate-800/90 backdrop-blur border-t border-slate-700 fixed bottom-0 inset-x-0 z-40 px-2 py-1">
+        <div class="max-w-4xl mx-auto flex justify-between items-center text-center">
+            <button onclick="switchSystemTab('home')" id="nav-btn-home" class="flex-1 py-2 text-[10px] font-bold text-emerald-400 flex flex-col items-center gap-0.5 cursor-pointer transition-colors"><span class="text-base">🏠</span>Home</button>
+            <button onclick="switchSystemTab('transactions')" id="nav-btn-transactions" class="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 cursor-pointer transition-colors"><span class="text-base">📜</span>Ledger</button>
+            <button onclick="switchSystemTab('accounts')" id="nav-btn-accounts" class="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 cursor-pointer transition-colors"><span class="text-base">🏦</span>Accounts</button>
+            <button onclick="switchSystemTab('cashflow')" id="nav-btn-cashflow" class="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 cursor-pointer transition-colors"><span class="text-base">📊</span>Cashflow</button>
+            <button onclick="switchSystemTab('statistics')" id="nav-btn-statistics" class="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 cursor-pointer transition-colors"><span class="text-base">📈</span>Stats</button>
+            <button onclick="switchSystemTab('budget')" id="nav-btn-budget" class="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 cursor-pointer transition-colors"><span class="text-base">🍕</span>Budgets</button>
+            <button onclick="switchSystemTab('goals')" id="nav-btn-goals" class="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 cursor-pointer transition-colors"><span class="text-base">🎯</span>Goals</button>
+        </div>
+    </nav>
 
     <script>
         const SUPABASE_URL = "https://mjzwroykbdssyopcggrk.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_L38MRSyhnIdffvl0QgjWzA_1-gCcBAf";
 
-        // Distinct variable name to prevent naming clashes
         let supabaseClient = null;
-        let currentChart = null;
+        let cachedTransactions = [];
+        let netWorthChartInstance = null;
 
         try {
             if (window.supabase) {
                 supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } else {
-                console.error("External Supabase CDN library is unreachable.");
             }
-        } catch (err) {
-            console.error("Client initialization fault:", err);
-        }
+        } catch (err) { console.error("Initialization error:", err); }
 
-        // Auto-assign local calendar time stamp
         document.addEventListener('DOMContentLoaded', () => {
             const dateBox = document.getElementById('tx-date');
-            if (dateBox) {
-                dateBox.value = new Date().toISOString().split('T')[0];
-            }
+            if (dateBox) dateBox.value = new Date().toISOString().split('T')[0];
         });
 
         window.onload = async () => {
@@ -121,14 +268,40 @@
         };
 
         function toggleScreens(session) {
+            const loginLayer = document.getElementById('login-screen');
+            const appLayer = document.getElementById('app-screen');
+            const navLayer = document.getElementById('app-navigation-bar');
+            
             if (session) {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-screen').classList.remove('hidden');
-                document.getElementById('user-badge').innerText = `Logged in as: ${session.user.email}`;
-                renderChart();
+                loginLayer.classList.add('hidden');
+                appLayer.classList.remove('hidden');
+                navLayer.classList.remove('hidden');
+                document.getElementById('user-badge').innerText = `NODE ID: ${session.user.email}`;
+                syncCoreDataLedger();
             } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('app-screen').classList.add('hidden');
+                loginLayer.classList.remove('hidden');
+                appLayer.classList.add('hidden');
+                navLayer.classList.add('hidden');
+            }
+        }
+
+        // NAVIGATION SWITCH LOGIC ROUTER
+        function switchSystemTab(targetTabId) {
+            document.querySelectorAll('.app-panel').forEach(panel => panel.classList.add('hidden'));
+            document.getElementById(`panel-${targetTabId}`).classList.remove('hidden');
+            
+            document.querySelectorAll('#app-navigation-bar button').forEach(btn => {
+                btn.classList.remove('text-emerald-400');
+                btn.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById(`nav-btn-${targetTabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400');
+                activeBtn.classList.add('text-emerald-400');
+            }
+
+            if (targetTabId === 'accounts' || targetTabId === 'cashflow') {
+                renderNetWorthVisualization();
             }
         }
 
@@ -138,30 +311,17 @@
             const errorMsg = document.getElementById('login-error');
             const btn = document.getElementById('btn-login');
 
-            btn.innerText = "Signing in...";
-            if (errorMsg) errorMsg.classList.add('hidden');
-
+            btn.innerText = "Authorizing...";
             try {
-                if (!supabaseClient) {
-                    alert("Supabase connection layer is inactive.");
-                    btn.innerText = "Sign In";
-                    return;
-                }
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
                 if (error) {
-                    if (errorMsg) {
-                        errorMsg.innerText = error.message;
-                        errorMsg.classList.remove('hidden');
-                    }
-                    btn.innerText = "Sign In";
+                    errorMsg.innerText = error.message;
+                    errorMsg.classList.remove('hidden');
+                    btn.innerText = "Verify Credentials";
                 } else {
                     toggleScreens(data.session);
                 }
-            } catch (err) {
-                console.error("Auth process error:", err);
-                btn.innerText = "Sign In";
-            }
+            } catch (err) { btn.innerText = "Verify Credentials"; }
         }
 
         async function handleLogout() {
@@ -171,41 +331,131 @@
             }
         }
 
-        async function renderChart() {
+        // TRANSACTION SYNCHRONIZATION OVER ENGINE
+        async function syncCoreDataLedger() {
             if (!supabaseClient) return;
-            
-            const { data: transactions, error } = await supabaseClient
+            const { data, error } = await supabaseClient
                 .from('transactions')
-                .select('transaction_date, amount')
-                .order('transaction_date', { ascending: true });
+                .select('*')
+                .order('transaction_date', { ascending: false });
 
-            if (error || !transactions) return;
+            if (!error && data) {
+                cachedTransactions = data;
+                populateTransactionsTable(cachedTransactions);
+            }
+        }
 
-            let cumulativeSum = 0;
-            const chartData = {};
-
-            transactions.forEach(tx => {
-                cumulativeSum += parseFloat(tx.amount);
-                chartData[tx.transaction_date] = cumulativeSum;
-            });
-
-            const labels = Object.keys(chartData);
-            const dataValues = Object.values(chartData);
-            const ctx = document.getElementById('netWorthChart').getContext('2d');
+        function populateTransactionsTable(dataset) {
+            const tbody = document.getElementById('live-transaction-table-body');
+            tbody.innerHTML = '';
             
-            if (currentChart) {
-                currentChart.destroy();
+            dataset.forEach(tx => {
+                const isExpense = parseFloat(tx.amount) < 0;
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-800/40 transition-colors border-b border-slate-700/30";
+                row.innerHTML = `
+                    <td class="p-4 font-mono text-xs text-slate-300">${tx.transaction_date}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded-lg text-xs font-bold ${isExpense ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">${tx.category || 'Unclassified'}</span></td>
+                    <td class="p-4 text-slate-200 max-w-xs truncate">${tx.description || '—'}</td>
+                    <td class="p-4 font-mono font-bold text-right ${isExpense ? 'text-rose-400' : 'text-emerald-400'}">LKR ${Math.abs(tx.amount).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="openEditorModal('${tx.id}', ${tx.amount}, '${tx.transaction_date}', '${tx.category}', '${tx.description}')" class="text-xs bg-slate-700 hover:bg-emerald-400 hover:text-slate-950 px-2.5 py-1 rounded-lg font-bold transition-all duration-150 cursor-pointer">Modify</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterTransactionsTable() {
+            const query = document.getElementById('tx-search').value.toLowerCase();
+            const filtered = cachedTransactions.filter(tx => 
+                (tx.description && tx.description.toLowerCase().includes(query)) ||
+                (tx.category && tx.category.toLowerCase().includes(query))
+            );
+            populateTransactionsTable(filtered);
+        }
+
+        // TRANSACTION UPDATE MODAL CONTROLLER
+        function openEditorModal(id, amount, date, category, desc) {
+            document.getElementById('edit-tx-id').value = id;
+            document.getElementById('edit-tx-amount').value = amount;
+            document.getElementById('edit-tx-date').value = date;
+            document.getElementById('edit-tx-category').value = category === 'null' ? '' : category;
+            document.getElementById('edit-tx-description').value = desc === 'null' ? '' : desc;
+            document.getElementById('editor-modal').classList.remove('hidden');
+        }
+
+        function closeEditorModal() {
+            document.getElementById('editor-modal').classList.add('hidden');
+        }
+
+        async function commitTransactionOverride() {
+            const id = document.getElementById('edit-tx-id').value;
+            const amount = parseFloat(document.getElementById('edit-tx-amount').value);
+            const date = document.getElementById('edit-tx-date').value;
+            const category = document.getElementById('edit-tx-category').value;
+            const desc = document.getElementById('edit-tx-description').value;
+
+            const { error } = await supabaseClient
+                .from('transactions')
+                .update({ amount: amount, transaction_date: date, category: category, description: desc })
+                .eq('id', id);
+
+            if (!error) {
+                closeEditorModal();
+                syncCoreDataLedger();
+            } else {
+                alert(`Error overriding entry database state: ${error.message}`);
+            }
+        }
+
+        async function submitTransaction() {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const txDate = document.getElementById('tx-date').value;
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value;
+            const statusMsg = document.getElementById('tx-status');
+            const btn = document.getElementById('btn-submit');
+
+            if (!amount || !txDate) {
+                statusMsg.innerText = "⚠️ Fill execution amount and timeline fields.";
+                statusMsg.className = "text-xs text-center text-amber-400 mt-2";
+                return;
             }
 
-            currentChart = new Chart(ctx, {
+            btn.disabled = true;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            const { error } = await supabaseClient.from('transactions').insert([
+                { transaction_date: txDate, amount: amount, category: category, description: description, entered_by: user.email }
+            ]);
+
+            btn.disabled = false;
+            if (!error) {
+                statusMsg.innerText = "✅ Tracked successfully into ledger.";
+                statusMsg.className = "text-xs text-center text-emerald-400 mt-2";
+                document.getElementById('amount').value = "";
+                document.getElementById('description').value = "";
+                syncCoreDataLedger();
+            }
+        }
+
+        function renderNetWorthVisualization() {
+            const canvas = document.getElementById('netWorthChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            if (netWorthChartInstance) netWorthChartInstance.destroy();
+
+            // Computes mock metrics tracking backwards to generate visual vector curves
+            netWorthChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
                     datasets: [{
-                        label: 'Net Worth (LKR)',
-                        data: dataValues,
+                        data: [200000, 250000, 240000, 310000, 390000, 450000],
                         borderColor: '#34d399',
-                        backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                        backgroundColor: 'rgba(52, 211, 153, 0.05)',
                         borderWidth: 2,
                         tension: 0.3,
                         fill: true
@@ -221,60 +471,6 @@
                     }
                 }
             });
-        }
-
-        async function submitTransaction() {
-            if (!supabaseClient) return;
-            
-            const amount = parseFloat(document.getElementById('amount').value);
-            const txDate = document.getElementById('tx-date').value;
-            const category = document.getElementById('category').value;
-            const accountId = parseInt(document.getElementById('account-id').value);
-            const description = document.getElementById('description').value;
-            const statusMsg = document.getElementById('tx-status');
-            const btn = document.getElementById('btn-submit');
-
-            if (!amount || !txDate || !accountId) {
-                statusMsg.innerText = "⚠️ Fill out Amount, Date, and Account ID.";
-                statusMsg.className = "text-sm text-center text-amber-400 mt-2";
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = "Saving...";
-
-            try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-
-                const { error } = await supabaseClient.from('transactions').insert([
-                    {
-                        transaction_date: txDate,
-                        amount: amount,
-                        category: category,
-                        account_id: accountId,
-                        description: description,
-                        entered_by: user.email
-                    }
-                ]);
-
-                btn.disabled = false;
-                btn.innerText = "Save Transaction";
-
-                if (error) {
-                    statusMsg.innerText = `❌ Error: ${error.message}`;
-                    statusMsg.className = "text-sm text-center text-rose-400 mt-2";
-                } else {
-                    statusMsg.innerText = "✅ Saved successfully!";
-                    statusMsg.className = "text-sm text-center text-emerald-400 mt-2";
-                    document.getElementById('amount').value = "";
-                    document.getElementById('description').value = "";
-                    renderChart(); 
-                }
-            } catch (err) {
-                console.error("Submission error:", err);
-                btn.disabled = false;
-                btn.innerText = "Save Transaction";
-            }
         }
     </script>
 </body>
