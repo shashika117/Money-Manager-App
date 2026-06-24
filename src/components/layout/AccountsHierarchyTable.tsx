@@ -14,7 +14,7 @@
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { AccountBalance } from '@/hooks/useAccountBalances'
-import { pl } from 'zod/v4/locales'
+
 
 // ── Helpers ───────────────────────────────────────────────────────
 function fmtAmt(n: number): string {
@@ -96,9 +96,12 @@ export function AccountsHierarchyTable({
         const gCol = collG.has(group.name)
         // Assets section is green-tinted; Liability is red-tinted
         const headerAccent = group.name === 'Assets' ? 'text-green' : 'text-red'
+       /*
         const borderAccent  = group.name === 'Assets'
           ? 'border-green/20 hover:border-green/40'
           : 'border-red/20 hover:border-red/40'
+
+          */
 
         return (
           <div key={group.name} className={cn(
@@ -118,7 +121,7 @@ export function AccountsHierarchyTable({
             </button>
 
             {/* Categories + accounts */}
-            {!gCol && group.categories.map((cat, ci) => {
+            {!gCol && group.categories.map((cat) => {
               const cKey = `${group.name}|${cat.name}`
               const cCol = collC.has(cKey)
 

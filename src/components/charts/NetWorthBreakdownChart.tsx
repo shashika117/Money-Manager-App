@@ -30,7 +30,7 @@ interface Props { data: NetWorthDataPoint[]; period: NetWorthPeriod; isLoading: 
 const VB_H = 280
 const PAD  = { top: 20, right: 12, bottom: 28, left: 12 }
 
-export function NetWorthBreakdownChart({ data, period, isLoading }: Props) {
+export function NetWorthBreakdownChart({ data, isLoading }: Props) {
   const wrapRef   = useRef<HTMLDivElement>(null)
   const [vbW, setVbW] = useState(800)
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)

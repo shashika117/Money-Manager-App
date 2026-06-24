@@ -13,6 +13,7 @@ interface CashflowChartProps {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
+/*
 function fmtK(n: number): string {
   const a = Math.abs(n)
   if (a >= 1_000_000) return `${(a / 1_000_000).toFixed(1)}M`
@@ -20,6 +21,7 @@ function fmtK(n: number): string {
   if (a >= 1_000)     return `${(a / 1_000).toFixed(1)}K`
   return a.toLocaleString('en-US', { maximumFractionDigits: 0 })
 }
+*/
 
 // ── CashflowChart ──────────────────────────────────────────────────
 export function CashflowChart({
