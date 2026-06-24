@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!--
+      viewport-fit=cover  → content fills behind Dynamic Island / notch
+      maximum-scale=1.0   → disables pinch-to-zoom
+      user-scalable=no    → belt-and-suspenders on older iOS
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+
+    <!-- ── iOS PWA (standalone / "Add to Home Screen") ── -->
+    <meta name="apple-mobile-web-app-capable"          content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title"            content="Money Manager" />
+
+    <!-- ── Android PWA (Chrome "Add to Home Screen") ── -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color"            content="#080d1a" />
+    <link rel="manifest"                href="/manifest.json" />
+
+    <!-- ── Apple touch icon (used as home screen icon) ── -->
+    <!-- See Step 6 below for how to create the icon files -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- ── Google Fonts ── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>Money Manager</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
