@@ -4,7 +4,7 @@
 // Stays in place while the table scrolls (parent applies sticky positioning).
 
 import { cn } from '@/lib/utils'
-import { fmtAmt, signColor, nwsColor } from '@/lib/budgetFormat'
+import { fmtAmt, signColor, nwsColor, savingActualColor } from '@/lib/budgetFormat'
 import { ProgressBar } from '@/components/budget/ProgressBar'
 import type { BudgetSummary } from '@/hooks/useBudgetSummary'
 
@@ -63,7 +63,7 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
 
         <DetailRow label="Needs" value={summary.actual_needs} />
         <DetailRow label="Wants" value={summary.actual_wants} />
-        <DetailRow label="Save"  value={summary.actual_save} signed />
+        <DetailRow label="Save"  value={summary.actual_save} colorClass={savingActualColor(summary.actual_save)} />
         <NwsRow score={summary.actual_nws} />
       </div>
 
@@ -95,12 +95,15 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
 }
 
 // ── Detail row (Needs / Wants / Save) ─────────────────────────────
-function DetailRow({ label, value, signed }: { label: string; value: number; signed?: boolean }) {
-  // signed=true → colour by sign (Actual Save can be negative). Else neutral.
+function DetailRow({ label, value, signed, colorClass }: {
+  label: string; value: number; signed?: boolean; colorClass?: string
+}) {
+  // colorClass wins if provided; else signed→sign colour; else neutral white.
+  const cls = colorClass ?? (signed ? signColor(value) : 'text-white')
   return (
     <div className="flex items-center justify-between py-1">
       <span className="font-dm text-sm text-soft">{label}</span>
-      <span className={cn('font-dm text-sm', signed ? signColor(value) : 'text-white')}>
+      <span className={cn('font-dm text-sm', cls)}>
         {fmtAmt(value)}
       </span>
     </div>
@@ -129,13 +132,19 @@ function SummaryBar({ label, kind, month, actual, budget, actualWord, budgetWord
   actualWord: string
   budgetWord: string
 }) {
+  // Per-type actual amount colour: Income green, Expenses red, Savings cyan.
+  const actualColor =
+    kind === 'income'  ? 'text-green'
+    : kind === 'saving' ? 'text-cyan'
+    : 'text-red'
+
   return (
     <div className="mb-4 last:mb-0">
       <p className="font-dm text-sm text-white mb-1.5">{label}</p>
       <ProgressBar actual={actual} effectiveBudget={budget} kind={kind} month={month} height={8} />
       <div className="flex items-center justify-between mt-1.5">
-        <span className={cn('font-dm text-xs', signColor(actual))}>
-          {fmtAmt(actual)} <span className="text-muted">{actualWord}</span>
+        <span className={cn('font-sora text-sm font-bold', actualColor)}>
+          {fmtAmt(actual)} <span className="font-dm text-[11px] font-normal text-muted">{actualWord}</span>
         </span>
         <span className="font-dm text-xs text-soft">
           {fmtAmt(budget)} <span className="text-muted">{budgetWord}</span>

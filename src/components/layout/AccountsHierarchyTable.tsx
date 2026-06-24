@@ -15,7 +15,6 @@ import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { AccountBalance } from '@/hooks/useAccountBalances'
 
-
 // ── Helpers ───────────────────────────────────────────────────────
 function fmtAmt(n: number): string {
   return Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -96,12 +95,6 @@ export function AccountsHierarchyTable({
         const gCol = collG.has(group.name)
         // Assets section is green-tinted; Liability is red-tinted
         const headerAccent = group.name === 'Assets' ? 'text-green' : 'text-red'
-       /*
-        const borderAccent  = group.name === 'Assets'
-          ? 'border-green/20 hover:border-green/40'
-          : 'border-red/20 hover:border-red/40'
-
-          */
 
         return (
           <div key={group.name} className={cn(
@@ -121,7 +114,7 @@ export function AccountsHierarchyTable({
             </button>
 
             {/* Categories + accounts */}
-            {!gCol && group.categories.map((cat) => {
+            {!gCol && group.categories.map(cat => {
               const cKey = `${group.name}|${cat.name}`
               const cCol = collC.has(cKey)
 
@@ -146,7 +139,6 @@ export function AccountsHierarchyTable({
                   {!cCol && cat.accounts.map((acc, ai) => {
                     const isSel = selectedAccount === acc.master_account
                     return (
-                      
                       <button
                         key={acc.master_account}
                         onClick={() => onSelectAccount(acc.master_account)}

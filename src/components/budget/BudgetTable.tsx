@@ -1,16 +1,17 @@
 // The 3/4-width sectional budget table.
 //   • Three sticky section headers (Income / Expenses / Savings) that
 //     pin perfectly at top-0 and push each other away on scroll.
-//   • Clean, borderless headers with elevated title text sizes.
-//   • Balanced middle-ground padding profiles for crisp readability.
-//   • Subcategory labels vertically centered across the entire height of the row.
+//   • Per-section group outline colours (green / red / cyan).
 //   • Inline-editable Budget cells; read-only Actual & Remaining cells
-//     open contextual popups.
+//     open contextual popups, coloured per-section.
 //   • Per-row progress bars; group total rows.
 
 import { useState, useRef, useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import { fmtAmt, signColor, type ProgressKind } from '@/lib/budgetFormat'
+import {
+  fmtAmt, signColor, type ProgressKind,
+  savingActualColor, incomeRemainingColor, savingRemainingColor,
+} from '@/lib/budgetFormat'
 import { ProgressBar } from '@/components/budget/ProgressBar'
 import {
   BudgetEditPopup, RemainingPopup, ActualCalendarPopup,
@@ -124,7 +125,7 @@ function Section({
 }) {
   return (
     <div className="mb-5">
-      {/* Sticky section header (font size configuration lives here) */}
+      {/* Sticky section header */}
       <div
         className="sticky z-30 grid grid-cols-[3fr_5fr] items-center bg-navy/95 backdrop-blur px-3"
         style={{ top: stickyTop, height: HEADER_H }}
@@ -135,11 +136,11 @@ function Section({
         <div className="grid grid-cols-[0.8fr_2.1fr_2.1fr] text-right pr-1.5">
           <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-1.5">Budget</span>
           <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-1.5">Actual</span>
-          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-1.5">Remaining</span>
+          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-2.5">Remaining</span>
         </div>
       </div>
 
-      {/* Category groups wrapper (group gap spacing configuration lives here) */}
+      {/* Category groups wrapper */}
       <div className="flex flex-col gap-5 px-1 pt-2">
         {groups.map(group => (
           <CategoryBox
@@ -173,8 +174,15 @@ function CategoryBox({
   const visibleRows = filterEmptyRows(group.rows, showAll)
   if (!showAll && visibleRows.length === 0) return null
 
+  // Per-section group outline colour:
+  //   Income → green · Expense → red · Savings → cyan
+  const outline =
+    section === 'Income'   ? 'border-line' // was border-green/30
+    : section === 'Savings' ? 'border-line' // was border-red/30
+    : 'border-line' // was border-cyan/30
+
   return (
-    <div className="rounded-xl border border-line overflow-hidden">
+    <div className={cn('rounded-xl border overflow-hidden', outline)}>
       {/* Group total row */}
       <button
         onClick={onToggle}
@@ -186,8 +194,14 @@ function CategoryBox({
         </span>
         <div className="grid grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
           <TotalCell value={group.budget} />
-          <TotalCell value={group.actual} signed={section === 'Savings'} />
-          <TotalCell value={group.remaining} signed />
+          <TotalCell value={group.actual} colorClass={
+            section === 'Savings' ? savingActualColor(group.actual) : 'text-white'
+          } />
+          <TotalCell value={group.remaining} colorClass={
+            section === 'Income'   ? incomeRemainingColor(group.remaining)
+            : section === 'Savings' ? savingRemainingColor(group.remaining)
+            : signColor(group.remaining)
+          } />
         </div>
       </button>
 
@@ -202,11 +216,12 @@ function CategoryBox({
   )
 }
 
-function TotalCell({ value, signed }: { value: number; signed?: boolean }) {
+// Group total cell. colorClass defaults to white when not provided.
+function TotalCell({ value, colorClass }: { value: number; colorClass?: string }) {
   return (
     <span className={cn(
       'font-sora text-xs font-bold tabular-nums text-right w-full pr-1.5',
-      signed ? signColor(value) : 'text-white',
+      colorClass ?? 'text-white',
     )}>
       {fmtAmt(value)}
     </span>
@@ -226,13 +241,29 @@ function SubRow({
 }) {
   const isNeed = row.group_name === 'Needs'
 
+  // Actual cell colour:
+  //   Income / Expense / Needs / Wants → text-soft (softened from text-white)
+  //   Savings → white when ≥ 0, red when < 0 (withdrawal)
+  const actualColor = row.section === 'Savings'
+    ? savingActualColor(row.actual)
+    : 'text-soft'
+
+  // Remaining cell colour:
+  //   Income  → red if > 0 (short), green if < 0 (over-earned)
+  //   Savings → amber if > 0 (short), cyan if < 0 (over-saved)
+  //   Expense → existing sign logic (green ≥ 0, red < 0)
+  const remainingColor =
+    row.section === 'Income'   ? incomeRemainingColor(row.remaining)
+    : row.section === 'Savings' ? savingRemainingColor(row.remaining)
+    : signColor(row.remaining)
+
   return (
     <div className="px-3 py-2.5 border-t border-line/40 grid grid-cols-[3fr_5fr] items-center">
-      {/* Left Side: Label + badges — Now perfectly centered vertically against the entire row height */}
+      {/* Left Side: Label + badges */}
       <div className="flex items-center gap-1.5 min-w-0 pr-2">
         <span className={cn(
-          'font-dm text-sm truncate',
-          isNeed ? 'text-amber' : 'text-white',
+          'font-dm text-sm font-normal truncate',
+          isNeed ? 'text-amber/80' : 'text-soft',
         )}>
           {row.ex_sub_category}
         </span>
@@ -243,24 +274,24 @@ function SubRow({
         )}
       </div>
 
-      {/* Right Side: Unified vertical flex column containing numbers and progress bar */}
+      {/* Right Side: numbers + progress bar */}
       <div className="flex flex-col">
-        {/* Values Grid */}
         <div className="grid grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
           <BudgetCell row={row} onCellClick={onCellClick} />
           <ReadOnlyCell
             value={row.actual}
-            signed={row.section === 'Savings'}
+            colorClass={actualColor}
+            className="font-normal"
             onClick={rect => onCellClick({ kind: 'actual', row, rect })}
           />
           <ReadOnlyCell
             value={row.remaining}
-            signed
+            colorClass={remainingColor}
+            className="font-semibold"
             onClick={rect => onCellClick({ kind: 'remaining', row, rect })}
           />
         </div>
 
-        {/* Progress Bar Track Layer */}
         <div className="pr-1.5 mt-2">
           <ProgressBar
             actual={row.section === 'Income' ? row.actual : Math.abs(row.actual)}
@@ -274,7 +305,11 @@ function SubRow({
 }
 
 // ════════════════════════════════════════════════════════════════
-// INTERACTIVE DATA CELL ELEMENT MODULES
+// INTERACTIVE DATA CELL ELEMENTS
+//
+// Each button is `w-full` with the number right-aligned. We capture the
+// rect of an inner <span> wrapping the number (not the button) so the
+// popup anchors exactly to the visible number on wide columns.
 // ════════════════════════════════════════════════════════════════
 function BudgetCell({
   row, onCellClick,
@@ -282,43 +317,43 @@ function BudgetCell({
   row: BudgetRow
   onCellClick: (p: OpenPopup) => void
 }) {
-  const cellRef = useRef<HTMLButtonElement>(null)
+  const textRef = useRef<HTMLSpanElement>(null)
 
   function open() {
-    if (cellRef.current) {
-      onCellClick({ kind: 'budget', row, rect: cellRef.current.getBoundingClientRect() })
+    if (textRef.current) {
+      onCellClick({ kind: 'budget', row, rect: textRef.current.getBoundingClientRect() })
     }
   }
 
   return (
     <button
-      ref={cellRef}
       onClick={open}
-      className="font-sora text-xs tabular-nums text-right w-full rounded pr-1.5 py-1 text-white hover:bg-green/10 hover:ring-1 hover:ring-green/40 transition-all"
+      className="font-sora text-xs font-normal tabular-nums text-right w-full rounded pr-1.5 py-1 text-soft hover:bg-panel/50 transition-all"
     >
-      {fmtAmt(row.budget)}
+      <span ref={textRef}>{fmtAmt(row.budget)}</span>
     </button>
   )
 }
 
 function ReadOnlyCell({
-  value, signed, onClick,
+  value, colorClass, className, onClick,
 }: {
   value: number
-  signed?: boolean
+  colorClass: string
+  className?: string
   onClick: (rect: DOMRect) => void
 }) {
-  const ref = useRef<HTMLButtonElement>(null)
+  const textRef = useRef<HTMLSpanElement>(null)
   return (
     <button
-      ref={ref}
-      onClick={() => ref.current && onClick(ref.current.getBoundingClientRect())}
+      onClick={() => textRef.current && onClick(textRef.current.getBoundingClientRect())}
       className={cn(
         'font-sora text-xs tabular-nums text-right w-full rounded pr-1.5 py-1 hover:bg-panel/50 transition-colors',
-        signed ? signColor(value) : 'text-white',
+        colorClass,
+        className,
       )}
     >
-      {fmtAmt(value)}
+      <span ref={textRef}>{fmtAmt(value)}</span>
     </button>
   )
 }

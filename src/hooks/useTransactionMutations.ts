@@ -14,6 +14,11 @@ const INVALIDATE_KEYS = [
   ['calendar_daily'],
   ['monthly_cashflow'],
   ['transactions_search'],
+  // ── ADDED: keeps the Budget page's Actual column and summary cards
+  //    live whenever a transaction is added/edited/deleted, instead of
+  //    showing stale numbers until the user navigates away and back.
+  ['budget_table'],
+  ['budget_summary'],
 ]
 
 // ── Payload types ──────────────────────────────────────────────────
