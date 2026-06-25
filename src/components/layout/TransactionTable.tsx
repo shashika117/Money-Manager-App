@@ -30,7 +30,7 @@ function DateGroupHeader({ group, onDateGroupSelect }: DateGroupHeaderProps) {
         // Only show interactive styles when callback is provided
         onDateGroupSelect && [
           'cursor-pointer touch-manipulation',
-          'transition-colors hover:bg-panel/30 active:bg-panel/50',
+          'transition-colors hover:bg-navy',
         ],
       )}
       onClick={() => onDateGroupSelect?.(group.date)}

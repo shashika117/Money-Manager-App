@@ -211,7 +211,7 @@ function DayOverlay({ selectedDate, inheritedFilters, onClose }: DayOverlayProps
     isLaptop  && 'inset-y-0 right-0 border-l border-line',
   )
   // Use inline style for left on laptop to be exact
-  const panelStyle = isLaptop ? { left: '50%' } : undefined
+  const panelStyle = isLaptop ? { left: '65%' } : undefined
 
   const enterAnim = isLaptop ? 'animate-slide-in-right'  : 'animate-slide-up'
   const exitAnim  = isLaptop ? 'animate-slide-out-right' : 'animate-slide-down'
@@ -277,7 +277,7 @@ function DayOverlay({ selectedDate, inheritedFilters, onClose }: DayOverlayProps
            "right-5",
       
             // LAPTOP: Cancel right alignment, push to 50% width, and translate back by half its own width to center it perfectly
-           "lg:right-auto lg:left-1/2 lg:-translate-x-1/2 lg:-ml-12"
+           "lg:right-auto lg:left-3/5"
           )}
           // Your vertical positioning logic stays exactly how you want it:
          style={{ bottom: isLaptop ? '24px' : 'calc(67dvh + 12px)' }}

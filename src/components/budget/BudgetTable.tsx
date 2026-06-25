@@ -125,15 +125,15 @@ function Section({
 }) {
   return (
     <div className="mb-5">
-      {/* Sticky section header */}
+      {/* Sticky section header - Responsive Grid Ratios */}
       <div
-        className="sticky z-30 grid grid-cols-[3fr_5fr] items-center bg-navy/95 backdrop-blur px-3"
+        className="sticky z-30 grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center bg-navy/95 backdrop-blur px-3"
         style={{ top: stickyTop, height: HEADER_H }}
       >
         <span className="font-sora text-sm font-bold uppercase tracking-widest text-soft">
           {title}
         </span>
-        <div className="grid grid-cols-[0.8fr_2.1fr_2.1fr] text-right pr-1.5">
+        <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] text-right pr-1.5">
           <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-1.5">Budget</span>
           <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-1.5">Actual</span>
           <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-2.5">Remaining</span>
@@ -174,25 +174,20 @@ function CategoryBox({
   const visibleRows = filterEmptyRows(group.rows, showAll)
   if (!showAll && visibleRows.length === 0) return null
 
-  // Per-section group outline colour:
-  //   Income → green · Expense → red · Savings → cyan
-  const outline =
-    section === 'Income'   ? 'border-line' // was border-green/30
-    : section === 'Savings' ? 'border-line' // was border-red/30
-    : 'border-line' // was border-cyan/30
+  const outline = 'border-line'
 
   return (
     <div className={cn('rounded-xl border overflow-hidden', outline)}>
-      {/* Group total row */}
+      {/* Group total row - Responsive Grid Ratios */}
       <button
         onClick={onToggle}
-        className="w-full grid grid-cols-[3fr_5fr] items-center px-3 py-2.5 bg-panel/30 hover:bg-panel/50 transition-colors"
+        className="w-full grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center px-3 py-2.5 bg-panel/30 hover:bg-panel/50 transition-colors"
       >
         <span className="flex items-center gap-1.5 text-left min-w-0 truncate">
           <span className={cn('font-sora text-[10px] text-muted transition-transform', collapsed ? '' : 'rotate-90')}>▶</span>
           <span className="font-sora text-xs font-bold text-white truncate">{group.label}</span>
         </span>
-        <div className="grid grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
+        <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
           <TotalCell value={group.budget} />
           <TotalCell value={group.actual} colorClass={
             section === 'Savings' ? savingActualColor(group.actual) : 'text-white'
@@ -241,24 +236,17 @@ function SubRow({
 }) {
   const isNeed = row.group_name === 'Needs'
 
-  // Actual cell colour:
-  //   Income / Expense / Needs / Wants → text-soft (softened from text-white)
-  //   Savings → white when ≥ 0, red when < 0 (withdrawal)
   const actualColor = row.section === 'Savings'
     ? savingActualColor(row.actual)
     : 'text-soft'
 
-  // Remaining cell colour:
-  //   Income  → red if > 0 (short), green if < 0 (over-earned)
-  //   Savings → amber if > 0 (short), cyan if < 0 (over-saved)
-  //   Expense → existing sign logic (green ≥ 0, red < 0)
   const remainingColor =
     row.section === 'Income'   ? incomeRemainingColor(row.remaining)
     : row.section === 'Savings' ? savingRemainingColor(row.remaining)
     : signColor(row.remaining)
 
   return (
-    <div className="px-3 py-2.5 border-t border-line/40 grid grid-cols-[3fr_5fr] items-center">
+    <div className="px-3 py-2.5 border-t border-line/40 grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center">
       {/* Left Side: Label + badges */}
       <div className="flex items-center gap-1.5 min-w-0 pr-2">
         <span className={cn(
@@ -269,14 +257,14 @@ function SubRow({
         </span>
         {row.rollover_enabled && (
           <span className="inline-flex items-center rounded-full border border-blue/30 bg-blue/10 px-1.5 py-0.5 font-dm text-[8px] text-blue whitespace-nowrap">
-            ↻ Rollover
+            ↻<span className="hidden sm:inline ml-0.5">Rollover</span>
           </span>
         )}
       </div>
 
       {/* Right Side: numbers + progress bar */}
       <div className="flex flex-col">
-        <div className="grid grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
+        <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
           <BudgetCell row={row} onCellClick={onCellClick} />
           <ReadOnlyCell
             value={row.actual}
