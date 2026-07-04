@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/hooks/useTransactions'
-import { useTransferGroup } from '@/hooks/useEditTransaction'
+import { useTransferGroup, useLoanPaymentGroup } from '@/hooks/useEditTransaction'
 import {
   useDeleteRegularTransaction,
   useDeleteSinkingFundExpense,
   useDeleteTransfer,
 } from '@/hooks/useDeleteTransaction'
+import { useDeleteLoanPayment } from '@/hooks/useLoanPaymentMutations'
 import { EditTransactionForm } from '@/components/forms/EditTransactionForm'
 import { EditTransferForm }    from '@/components/forms/EditTransferForm'
+import { EditLoanPaymentForm } from '@/components/forms/EditLoanPaymentForm'
 
 // ── Helpers ────────────────────────────────────────────────────────
 function fmtAmt(amount: number): string {
@@ -71,7 +73,7 @@ function Spinner({ color = 'blue' }: { color?: string }) {
 }
 
 // ── Types ──────────────────────────────────────────────────────────
-type PanelMode = 'detail' | 'confirm_delete' | 'edit_txn' | 'edit_transfer'
+type PanelMode = 'detail' | 'confirm_delete' | 'edit_txn' | 'edit_transfer' | 'edit_loan'
 
 interface Props {
   transaction: Transaction | null
@@ -81,34 +83,27 @@ interface Props {
 // ── Component ──────────────────────────────────────────────────────
 export function TransactionDetailPanel({ transaction, onClose }: Props) {
   const [mode, setMode] = useState<PanelMode>('detail')
-
   const [isClosing, setIsClosing] = useState(false)
 
-// Intercepts all close actions so we can play exit animation first,
-// then call onClose() to remove the component from the DOM.
-function handleClose() {
-  setIsClosing(true)
-  setTimeout(() => {
-    setIsClosing(false)
-    onClose()
-  }, 240)  // must match --animate-slide-down / --animate-slide-out-right duration
-}
-
-// When the user is in edit or confirm_delete mode, pressing X or the
-// backdrop should go back to the detail view — not close the panel.
-// Only when already in 'detail' mode should those actions close entirely.
-function handleBackdropOrX() {
-  if (mode !== 'detail') {
-    setMode('detail')
-  } else {
-    handleClose()
+  function handleClose() {
+    setIsClosing(true)
+    setTimeout(() => {
+      setIsClosing(false)
+      onClose()
+    }, 240)
   }
-}
 
-  // Reset to detail view when a new transaction is selected
+  function handleBackdropOrX() {
+    if (mode !== 'detail') {
+      setMode('detail')
+    } else {
+      handleClose()
+    }
+  }
+
   useEffect(() => {
     if (transaction) setMode('detail')
-      setIsClosing(false)   // ← add this line
+      setIsClosing(false)
   }, [transaction?.id])
 
   // True for both Transfer In/Out rows AND Fee rows — all belong to a transfer group
@@ -116,18 +111,30 @@ function handleBackdropOrX() {
     transaction && (transaction.is_transfer || transaction.is_transfer_fee)
   )
 
+  // True for ANY row in a loan-payment group — the synthetic merged row
+  // in the browse view, OR a raw capital/interest/liability row in a
+  // filtered view. flagLoanPaymentRows() in useTransactions.ts sets
+  // is_loan_payment on all of them, so detection works in every view.
+  const isLoanPayment = !!(transaction && transaction.is_loan_payment)
+
   // Fetch all rows in the transfer group as soon as the panel opens.
-  // This means the data is ready by the time user taps "Edit".
   const { data: transferGroup, isLoading: tgLoading } = useTransferGroup(
     isAnyTransferRow ? transaction?.transfer_group_id : null
   )
 
-  const deleteRegular     = useDeleteRegularTransaction()
-  const deleteSinkingFund = useDeleteSinkingFundExpense()
-  const deleteTransfer    = useDeleteTransfer()
+  // Fetch the loan-payment group (capital + interest + liability leg) the same way.
+  const { data: loanPaymentGroup, isLoading: lpLoading } = useLoanPaymentGroup(
+    isLoanPayment ? transaction?.transfer_group_id : null
+  )
+
+  const deleteRegular      = useDeleteRegularTransaction()
+  const deleteSinkingFund  = useDeleteSinkingFundExpense()
+  const deleteTransfer     = useDeleteTransfer()
+  const deleteLoanPayment  = useDeleteLoanPayment()
   const isDeleting = deleteRegular.isPending
     || deleteSinkingFund.isPending
     || deleteTransfer.isPending
+    || deleteLoanPayment.isPending
 
   if (!transaction) return null
 
@@ -135,7 +142,9 @@ function handleBackdropOrX() {
   async function handleDelete() {
     if (!transaction) return
     try {
-      if (isAnyTransferRow && transaction.transfer_group_id) {
+      if (isLoanPayment && transaction.transfer_group_id) {
+        await deleteLoanPayment.mutateAsync(transaction.transfer_group_id)
+      } else if (isAnyTransferRow && transaction.transfer_group_id) {
         await deleteTransfer.mutateAsync(transaction.transfer_group_id)
       } else if (transaction.is_sinking_funds) {
         await deleteSinkingFund.mutateAsync(transaction.id)
@@ -149,73 +158,74 @@ function handleBackdropOrX() {
   }
 
   // ── Amount to display in detail view ────────────────────────────
-  // For Transfer In/Out rows: show the main transfer amount from the group.
-  // For Fee rows and all others: show the transaction's own singed_amount.
   const detailAmount =
-    transaction.is_transfer && !transaction.is_transfer_fee
-      ? (transferGroup?.amount ?? Math.abs(transaction.singed_amount))
-      : Math.abs(transaction.singed_amount)
+    isLoanPayment
+      ? (loanPaymentGroup
+          ? loanPaymentGroup.capital_amount + loanPaymentGroup.interest_amount
+          : Math.abs(transaction.singed_amount))
+      : transaction.is_transfer && !transaction.is_transfer_fee
+        ? (transferGroup?.amount ?? Math.abs(transaction.singed_amount))
+        : Math.abs(transaction.singed_amount)
 
   const detailAmountColor =
-    transaction.is_transfer && !transaction.is_transfer_fee
-      ? 'text-soft'
-      : transaction.amount_color === 'green' ? 'text-green'
-      : transaction.amount_color === 'red'   ? 'text-red'
-      : 'text-soft'
+    isLoanPayment
+      ? 'text-red'
+      : transaction.is_transfer && !transaction.is_transfer_fee
+        ? 'text-soft'
+        : transaction.amount_color === 'green' ? 'text-green'
+        : transaction.amount_color === 'red'   ? 'text-red'
+        : 'text-soft'
 
   // ── Human-readable type label ────────────────────────────────────
   const typeLabel =
-    transaction.is_transfer_fee ? 'Transfer Fee'
-    : isAnyTransferRow          ? 'Transfer'
+    isLoanPayment                ? 'Loan Payment'
+    : transaction.is_transfer_fee ? 'Transfer Fee'
+    : isAnyTransferRow            ? 'Transfer'
     : transaction.txn_type
 
   const typeColor =
-    isAnyTransferRow              ? 'text-soft'
+    isLoanPayment       ? 'text-amber'
+    : isAnyTransferRow  ? 'text-soft'
     : transaction.txn_type === 'Income' ? 'text-green'
     : 'text-red'
 
   // ── Render ──────────────────────────────────────────────────────
   return (
     <>
-      {/* Backdrop */}
       <div
         className={cn(
-         'fixed inset-0 z-50 bg-black/70',
-         isClosing ? 'animate-fade-out' : 'animate-fade-in',
+          'fixed inset-0 z-50 bg-black/70',
+          isClosing ? 'animate-fade-out' : 'animate-fade-in',
         )}
-        onClick={handleBackdropOrX}          // was: onClick={handleClose} or onClick={onClose}
+        onClick={handleBackdropOrX}
         aria-hidden="true"
       />
 
-      {/* Panel — bottom sheet (mobile) / right panel (desktop) */}
       <div className={cn(
         'fixed z-50 bg-card flex flex-col overflow-hidden',
-       'bottom-0 left-0 right-0 rounded-t-2xl max-h-[90dvh]',
-       'md:inset-y-0 md:left-auto md:right-0',
-       'md:w-96 md:rounded-none md:rounded-l-2xl md:max-h-none md:h-full',
-       'md:border-l md:border-line',
-        // Mobile: slide up / down. Desktop: slide in-right / out-right.
-       isClosing
-         ? 'animate-slide-down md:animate-slide-out-right'
-         : 'animate-slide-up  md:animate-slide-in-right',
+        'bottom-0 left-0 right-0 rounded-t-2xl max-h-[90dvh]',
+        'md:inset-y-0 md:left-auto md:right-0',
+        'md:w-96 md:rounded-none md:rounded-l-2xl md:max-h-none md:h-full',
+        'md:border-l md:border-line',
+        isClosing
+          ? 'animate-slide-down md:animate-slide-out-right'
+          : 'animate-slide-up  md:animate-slide-in-right',
       )}>
 
-        {/* Drag handle (mobile) */}
         <div className="flex justify-center pt-3 pb-1 md:hidden flex-none">
           <div className="h-1 w-10 rounded-full bg-line" />
         </div>
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-line flex-none">
           <h2 className="font-sora text-base font-semibold text-white">
             {mode === 'confirm_delete'
               ? 'Confirm Delete'
-              : mode === 'edit_txn' || mode === 'edit_transfer'
+              : mode === 'edit_txn' || mode === 'edit_transfer' || mode === 'edit_loan'
                 ? 'Edit Transaction'
                 : 'Transaction Details'}
           </h2>
           <button
-            onClick={handleBackdropOrX}    // was: onClick={handleClose} or onClick={onClose}
+            onClick={handleBackdropOrX}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-panel font-dm text-soft hover:text-white"
             aria-label="Close"
           >
@@ -223,33 +233,50 @@ function handleBackdropOrX() {
           </button>
         </div>
 
-        {/* Scrollable body */}
         <div
           className="flex-1 overflow-y-auto px-5 pt-4"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
         >
 
-          {/* ═══════════════════════════════════════════════════════
-              MODE: DETAIL
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═══════════════════ MODE: DETAIL ═══════════════════ */}
           {mode === 'detail' && (
             <>
-              {/* Date — always shown */}
               <DetailField label="Date">
                 <span className="font-dm text-sm text-white">{fmtDate(transaction.date)}</span>
               </DetailField>
 
-              {/* Type */}
               <DetailField label="Type">
                 <span className={cn('font-sora text-sm font-semibold', typeColor)}>
                   {typeLabel}
                 </span>
               </DetailField>
 
-              {/* ── NON-TRANSFER FIELDS ── */}
-              {!isAnyTransferRow && (
+              {/* ── LOAN PAYMENT FIELDS ── */}
+              {isLoanPayment ? (
+                lpLoading ? (
+                  <DetailField label="Loan Payment"><Spinner color="amber" /></DetailField>
+                ) : loanPaymentGroup ? (
+                  <>
+                    <DetailField label="From Account">
+                      <span className="font-dm text-sm text-white">{loanPaymentGroup.from_account}</span>
+                    </DetailField>
+                    <DetailField label="Loan Account">
+                      <span className="font-dm text-sm text-white">{loanPaymentGroup.loan_account}</span>
+                    </DetailField>
+                    <DetailField label="Capital">
+                      <span className="font-dm text-sm text-white">Rs {fmtAmt(loanPaymentGroup.capital_amount)}</span>
+                    </DetailField>
+                    {loanPaymentGroup.interest_amount > 0 && (
+                      <DetailField label="Interest">
+                        <span className="font-dm text-sm text-white">Rs {fmtAmt(loanPaymentGroup.interest_amount)}</span>
+                      </DetailField>
+                    )}
+                  </>
+                ) : null
+
+              /* ── NON-TRANSFER, NON-LOAN FIELDS ── */
+              ) : !isAnyTransferRow && (
                 <>
-                  {/* Category + group badge */}
                   <DetailField label="Category">
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <span className="font-dm text-sm text-white">{transaction.category}</span>
@@ -259,7 +286,6 @@ function handleBackdropOrX() {
                     </div>
                   </DetailField>
 
-                  {/* Subcategory + rollover (regular expense only) */}
                   {transaction.display_subcategory && (
                     <DetailField label="Sub-Category">
                       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -271,7 +297,6 @@ function handleBackdropOrX() {
                     </DetailField>
                   )}
 
-                  {/* Account */}
                   <DetailField label="Account">
                     <span className="font-dm text-sm text-white">{transaction.master_account}</span>
                   </DetailField>
@@ -279,7 +304,7 @@ function handleBackdropOrX() {
               )}
 
               {/* ── TRANSFER-GROUP FIELDS (Transfer In, Transfer Out, Fee rows) ── */}
-              {isAnyTransferRow && (
+              {!isLoanPayment && isAnyTransferRow && (
                 tgLoading ? (
                   <DetailField label="Transfer Details">
                     <Spinner />
@@ -294,8 +319,6 @@ function handleBackdropOrX() {
                       <span className="font-dm text-sm text-white">{transferGroup.to_account}</span>
                     </DetailField>
 
-                    {/* Show Fee field only for Transfer In/Out rows, NOT for the fee row itself
-                        (fee row IS the fee — showing it again would be a duplicate) */}
                     {!transaction.is_transfer_fee && transferGroup.fee > 0 && (
                       <DetailField label="Fee">
                         <span className="font-dm text-sm text-soft">
@@ -304,7 +327,6 @@ function handleBackdropOrX() {
                       </DetailField>
                     )}
 
-                    {/* From Goal — only for Transfer In/Out rows, not fee rows */}
                     {!transaction.is_transfer_fee
                       && transferGroup.from_funds
                       && transferGroup.goal_name && (
@@ -330,7 +352,7 @@ function handleBackdropOrX() {
                 </DetailField>
               )}
 
-              {/* Note (full, not truncated) */}
+              {/* Note */}
               {transaction.note && (
                 <DetailField label="Note">
                   <span className="font-dm text-sm text-white max-w-[200px] break-words text-right">
@@ -342,7 +364,9 @@ function handleBackdropOrX() {
               {/* ── Actions ── */}
               <div className="mt-6 flex flex-col gap-3">
                 <button
-                  onClick={() => setMode(isAnyTransferRow ? 'edit_transfer' : 'edit_txn')}
+                  onClick={() => setMode(
+                    isLoanPayment ? 'edit_loan' : isAnyTransferRow ? 'edit_transfer' : 'edit_txn'
+                  )}
                   className="flex w-full items-center gap-3 rounded-xl bg-panel border border-line px-4 py-3.5 font-dm text-sm font-medium text-white transition-colors hover:border-green active:scale-[0.98]"
                 >
                   <span className="text-lg">✏️</span>
@@ -358,7 +382,7 @@ function handleBackdropOrX() {
                 </button>
 
                 <button
-                  onClick={handleClose} /* Changed from onClose to handleClose */
+                  onClick={handleClose}
                   className="w-full rounded-xl border border-line py-3 font-dm text-sm text-soft transition-colors hover:text-white"
                 >
                   Cancel
@@ -367,9 +391,7 @@ function handleBackdropOrX() {
             </>
           )}
 
-          {/* ═══════════════════════════════════════════════════════
-              MODE: CONFIRM DELETE
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═══════════════════ MODE: CONFIRM DELETE ═══════════════════ */}
           {mode === 'confirm_delete' && (
             <div className="flex flex-col gap-4">
               <div className="rounded-xl border border-red/30 bg-red/10 px-4 py-4">
@@ -377,12 +399,13 @@ function handleBackdropOrX() {
                   Delete this transaction?
                 </p>
                 <p className="font-dm text-xs text-soft leading-relaxed">
-                  {isAnyTransferRow
-                    // ← Issue 4 fix: updated warning text
-                    ? 'All linked transfer rows (Transfer In, Transfer Out, any fee, and any linked Goal transaction details) will be permanently deleted.'
-                    : transaction.is_sinking_funds
-                      ? 'This will also permanently remove the linked goal withdrawal entry.'
-                      : 'This action cannot be undone.'}
+                  {isLoanPayment
+                    ? 'All linked rows (capital, interest if any, and the loan account credit) will be permanently deleted.'
+                    : isAnyTransferRow
+                      ? 'All linked transfer rows (Transfer In, Transfer Out, any fee, and any linked Goal transaction details) will be permanently deleted.'
+                      : transaction.is_sinking_funds
+                        ? 'This will also permanently remove the linked goal withdrawal entry.'
+                        : 'This action cannot be undone.'}
                 </p>
               </div>
 
@@ -407,9 +430,7 @@ function handleBackdropOrX() {
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════
-              MODE: EDIT TRANSACTION
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═══════════════════ MODE: EDIT TRANSACTION ═══════════════════ */}
           {mode === 'edit_txn' && (
             <EditTransactionForm
               transaction={transaction}
@@ -418,9 +439,7 @@ function handleBackdropOrX() {
             />
           )}
 
-          {/* ═══════════════════════════════════════════════════════
-              MODE: EDIT TRANSFER
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═══════════════════ MODE: EDIT TRANSFER ═══════════════════ */}
           {mode === 'edit_transfer' && (
             tgLoading || !transferGroup ? (
               <div className="flex items-center justify-center py-10">
@@ -429,6 +448,21 @@ function handleBackdropOrX() {
             ) : (
               <EditTransferForm
                 transferData={transferGroup}
+                onSuccess={onClose}
+                onCancel={() => setMode('detail')}
+              />
+            )
+          )}
+
+          {/* ═══════════════════ MODE: EDIT LOAN PAYMENT ═══════════════════ */}
+          {mode === 'edit_loan' && (
+            lpLoading || !loanPaymentGroup ? (
+              <div className="flex items-center justify-center py-10">
+                <Spinner color="amber" />
+              </div>
+            ) : (
+              <EditLoanPaymentForm
+                data={loanPaymentGroup}
                 onSuccess={onClose}
                 onCancel={() => setMode('detail')}
               />

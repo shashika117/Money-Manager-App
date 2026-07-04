@@ -6,6 +6,7 @@ import { TransactionTable }       from '@/components/layout/TransactionTable'
 import { TransactionDetailPanel } from '@/components/layout/TransactionDetailPanel'
 import { AddTransactionSheet }    from '@/components/forms/AddTransactionSheet'
 import { FAB }                    from '@/components/ui/FAB'
+import { mergeLoanPayments } from '@/hooks/useTransactions'
 // ADD this import at the top (after the other imports)
 import {
   type TransactionFilters,
@@ -301,6 +302,18 @@ export function TransactionTableWidget({
 
   // Apply all active filters to the fetched data
   const displayGroups = applyFilters(allGroups, filters)
+  // Merge a loan payment's 2-3 raw rows into one "Loan Payment" display
+  // row — but ONLY in the general browsing view. Skip the merge whenever
+  // a category/subCategory filter is actively isolating one specific
+  // subcategory (e.g. the Budget page's Actual-cell calendar drill-down
+  // for "Loan Capital" or "Loan Interest") — that view must show the
+  // true, unmerged amount for exactly that subcategory, not a combined
+  // total. Account and date filters are unaffected — merging is still
+  // safe and still nice to look at in those views.
+  const shouldMergeLoanPayments = !filters.category && !filters.subCategory
+  const finalGroups = shouldMergeLoanPayments
+    ? displayGroups.map(g => ({ ...g, transactions: mergeLoanPayments(g.transactions) }))
+    : displayGroups
 
   // Each widget instance owns its own selected transaction state.
   // Mounting two widgets simultaneously keeps their selections independent.
@@ -333,7 +346,7 @@ export function TransactionTableWidget({
           <EmptyFiltered />
         ) : (
           <TransactionTable
-            groups={displayGroups}
+            groups={finalGroups}
             onSelectTransaction={setSelectedTxn}
             isLoading={isLoading}
             isError={isError}

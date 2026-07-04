@@ -108,11 +108,12 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
   const watchCategory = watch('category')
 
   // When type changes: reset category + subcategory + goal
-  useEffect(() => {
+   useEffect(() => {
     setValue('category',    '')
     setValue('subcategory', '')
     setValue('goal_name',   '')
-  }, [watchType, setValue])
+  }, [watchType, setValue]) 
+
 
   // When category changes: reset subcategory + goal
   useEffect(() => {

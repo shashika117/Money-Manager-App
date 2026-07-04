@@ -74,6 +74,58 @@ export function useTransferGroup(transferGroupId: string | null | undefined) {
   })
 }
 
+// ════════════════════════════════════════════════════════════════
+// ADD THIS to useEditTransaction.ts — place it right after
+// useTransferGroup (same file, same import block already covers it).
+// Mirrors useTransferGroup's exact pattern: fetch all rows sharing
+// the transfer_group_id, reconstruct the logical "loan payment" shape
+// the edit form and detail panel need.
+// ════════════════════════════════════════════════════════════════
+
+// ── Reconstructed loan-payment data used to pre-populate edit form ──
+export interface LoanPaymentGroupData {
+  transfer_group_id: string
+  date:              string
+  from_account:      string   // paying account (capital + interest)
+  loan_account:      string   // liability account credited
+  capital_amount:    number
+  interest_amount:   number
+  note:              string | null
+}
+
+// ── Fetch and reconstruct all rows in a loan-payment group ───────────
+export function useLoanPaymentGroup(transferGroupId: string | null | undefined) {
+  return useQuery<LoanPaymentGroupData | null>({
+    queryKey: ['loan_payment_group', transferGroupId],
+    queryFn: async () => {
+      if (!transferGroupId) return null
+
+      const { data: rows, error } = await supabase
+        .from('fact_transaction')
+        .select('*')
+        .eq('transfer_group_id', transferGroupId)
+      if (error) throw error
+
+      const capitalRow   = rows?.find(r => r.ex_sub_category === 'Loan Capital')
+      const interestRow  = rows?.find(r => r.ex_sub_category === 'Loan Interest')
+      const liabilityRow = rows?.find(r => r.ex_sub_category === 'Transfer' && r.singed_amount > 0)
+
+      return {
+        transfer_group_id: transferGroupId,
+        date:            capitalRow?.date ?? liabilityRow?.date ?? '',
+        from_account:    capitalRow?.master_account ?? '',
+        loan_account:    liabilityRow?.master_account ?? '',
+        capital_amount:  Math.abs(capitalRow?.singed_amount ?? 0),
+        interest_amount: Math.abs(interestRow?.singed_amount ?? 0),
+        note:            capitalRow?.note ?? null,
+      }
+    },
+    enabled: !!transferGroupId,
+    staleTime: 0,
+  })
+}
+
+
 // ── Update regular Expense or Income ────────────────────────────────
 export function useUpdateTransaction() {
   const qc = useQueryClient()

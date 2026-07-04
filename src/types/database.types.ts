@@ -569,6 +569,18 @@ export type Database = {
         Args: { p_target_month: string }
         Returns: string
       }
+      create_loan_payment: {
+        Args: {
+          p_capital_amount: number
+          p_date: string
+          p_from_account: string
+          p_interest_amount?: number
+          p_loan_account: string
+          p_note?: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       create_sinking_fund_expense: {
         Args: {
           p_account: string
@@ -592,6 +604,10 @@ export type Database = {
           p_to_account: string
           p_user_id?: string
         }
+        Returns: Json
+      }
+      delete_loan_payment: {
+        Args: { p_transfer_group_id: string }
         Returns: Json
       }
       delete_sinking_fund_expense: {
@@ -678,6 +694,19 @@ export type Database = {
       recalculate_account_balances: { Args: never; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      update_loan_payment: {
+        Args: {
+          p_capital_amount: number
+          p_date: string
+          p_from_account: string
+          p_interest_amount?: number
+          p_loan_account: string
+          p_note?: string
+          p_transfer_group_id: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       update_nws_base: {
         Args: { p_needs: number; p_wants: number }
         Returns: {

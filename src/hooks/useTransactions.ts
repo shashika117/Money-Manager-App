@@ -41,13 +41,14 @@ export interface Transaction {
   txn_type:         'Expense' | 'Income' | 'Transfer'
   rollover_enabled: boolean
   // Derived for display
-  display_category:    string   // "Transfer Out" / "Transfer In" / category name
+  display_category:    string   // "Transfer Out" / "Transfer In" / "Loan Payment" / category name
   display_subcategory: string   // '' for Income / Transfer / Sinking Funds
   amount_color:        'green' | 'red' | 'gray'
   is_transfer:         boolean  // Transfer In or Transfer Out rows
   is_transfer_fee:     boolean  // Fees & Taxes row inside a transfer group
   is_income:           boolean
   is_sinking_funds:    boolean
+  is_loan_payment:     boolean  // synthetic merged row (capital + interest + liability leg)
 }
 
 // ── Date group (for rendering) ─────────────────────────────────────
@@ -86,12 +87,10 @@ function transform(raw: RawTransaction): Transaction {
     display_subcategory = 'Fees & Taxes'
     amount_color        = 'red'
   } else if (isIncome || isSinkingFunds) {
-    // subcategory = category for Income; Sinking Funds also shows category only
     display_category    = category
     display_subcategory = ''
     amount_color        = isIncome ? 'green' : 'red'
   } else {
-    // Regular Expense
     display_category    = category
     display_subcategory = raw.ex_sub_category !== category ? raw.ex_sub_category : ''
     amount_color        = 'red'
@@ -120,7 +119,87 @@ function transform(raw: RawTransaction): Transaction {
     is_transfer_fee:   isTransferFee,
     is_income:         isIncome,
     is_sinking_funds:  isSinkingFunds,
+    is_loan_payment:   false,   // set true by flagLoanPaymentRows() / mergeLoanPayments() below
   }
+}
+
+// ════════════════════════════════════════════════════════════════
+// Loan payment merge — PRESENTATION-LAYER UTILITY. NOT called inside
+// this hook. useTransactions() must always return the true, unmerged
+// rows, because every category/subCategory-filtered consumer (e.g. the
+// Budget page's per-subcategory calendar drill-down) needs to isolate
+// the exact amount for ONE subcategory — merging here would corrupt
+// that (a "Loan Capital" filter would catch the merged total including
+// interest; a "Loan Interest" filter would find nothing, since the
+// interest row got absorbed into the merged row labelled Loan Capital).
+//
+// Call this ONLY in the general "browse everything" list view
+// (TransactionTableWidget), and ONLY when no category/subCategory
+// filter is currently narrowing the data. See TransactionTableWidget.tsx.
+//
+// A loan payment writes 2-3 raw rows sharing one transfer_group_id:
+//   'Loan Capital'  (Expense)
+//   'Loan Interest' (Expense, only if interest > 0)
+//   'Transfer'      (the liability-reduction leg, positive amount)
+//
+// Cost: O(n) over an already-fetched, already month-bounded array
+// (~20-50 rows for a typical month) — no extra database round trip.
+// ════════════════════════════════════════════════════════════════
+export function mergeLoanPayments(txns: Transaction[]): Transaction[] {
+  // Group rows by transfer_group_id (only those that have one)
+  const byGroup = new Map<string, Transaction[]>()
+  for (const t of txns) {
+    if (!t.transfer_group_id) continue
+    if (!byGroup.has(t.transfer_group_id)) byGroup.set(t.transfer_group_id, [])
+    byGroup.get(t.transfer_group_id)!.push(t)
+  }
+
+  // Identify which groups are loan payments (contain Loan Capital or Loan Interest)
+  const loanGroupIds = new Set<string>()
+  for (const [gid, rows] of byGroup) {
+    if (rows.some(r => r.ex_sub_category === 'Loan Capital' || r.ex_sub_category === 'Loan Interest')) {
+      loanGroupIds.add(gid)
+    }
+  }
+  if (loanGroupIds.size === 0) return txns   // fast path — nothing to merge
+
+  const result: Transaction[] = []
+  const consumed = new Set<string>()
+
+  for (const t of txns) {
+    const gid = t.transfer_group_id
+    if (gid && loanGroupIds.has(gid)) {
+      if (consumed.has(gid)) continue   // this group's merged row already emitted
+      consumed.add(gid)
+
+      const rows         = byGroup.get(gid)!
+      const capitalRow   = rows.find(r => r.ex_sub_category === 'Loan Capital')
+      const interestRow  = rows.find(r => r.ex_sub_category === 'Loan Interest')
+      const liabilityRow = rows.find(r => r.txn_type === 'Transfer')
+
+      const capitalAmt  = Math.abs(capitalRow?.singed_amount ?? 0)
+      const interestAmt = Math.abs(interestRow?.singed_amount ?? 0)
+      const base        = capitalRow ?? rows[0]
+
+      result.push({
+        ...base,
+        id:                   base.id,                              // keyed off the capital row
+        master_account:       base.master_account,                  // paying account
+        singed_amount:        -(capitalAmt + interestAmt),
+        display_category:     'Loan Payment',
+        display_subcategory:  liabilityRow?.master_account ?? '',   // e.g. "BOC Loan"
+        amount_color:         'red',
+        is_transfer:          false,
+        is_transfer_fee:      false,
+        is_income:            false,
+        is_sinking_funds:     false,
+        is_loan_payment:      true,
+      })
+      continue
+    }
+    result.push(t)
+  }
+  return result
 }
 
 // ── Group transactions by date into DateGroup[] ─────────────────────
@@ -135,22 +214,26 @@ function groupByDate(transactions: Transaction[]): DateGroup[] {
   }
 
   return Array.from(map.entries()).map(([date, txns]) => {
-    // Use local time to prevent UTC offset pushing date back one day
     const d = new Date(date + 'T00:00:00')
 
+    const total_income = txns
+      .filter(t => t.txn_type === 'Income')
+      .reduce((s, t) => s + t.singed_amount, 0)
+    const total_expense = txns
+      .filter(t => t.txn_type === 'Expense')
+      .reduce((s, t) => s + Math.abs(t.singed_amount), 0)
+
     return {
-  date,
-  day_name:     d.toLocaleDateString('en-US', { weekday: 'short' }),
-  day_of_month: String(d.getDate()),
-  month_year:   d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-  total_income: txns
-    .filter(t => t.txn_type === 'Income')
-    .reduce((s, t) => s + t.singed_amount, 0),
-  total_expense: txns
-    .filter(t => t.txn_type === 'Expense')
-    .reduce((s, t) => s + Math.abs(t.singed_amount), 0),
-  transactions: txns,
-  }
+      date,
+      day_name:     d.toLocaleDateString('en-US', { weekday: 'short' }),
+      day_of_month: String(d.getDate()),
+      month_year:   d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      total_income,
+      total_expense,
+      // Raw, unmerged rows — see mergeLoanPayments doc comment above
+      // for exactly where/when to merge for display.
+      transactions: txns,
+    }
   })
 }
 
@@ -174,7 +257,6 @@ export function useTransactions(
   const endDate   = new Date(year, month, 0).toISOString().slice(0, 10)
 
   return useQuery<DateGroup[]>({
-    // Separate cache key so search results never collide with month data
     queryKey: isSearchMode
       ? ['transactions_search', search]
       : ['transactions', year, month],
@@ -184,14 +266,14 @@ export function useTransactions(
 
       if (isSearchMode) {
         // Uses idx_ft_note_trgm — O(log n) regardless of table size.
-        // 500-row cap guards memory if a keyword matches thousands of rows.
         query = query
           .ilike('note', `%${search}%`)
           .order('date',       { ascending: false })
           .order('updated_at', { ascending: false })
           .limit(500)
       } else {
-        // Month view — uses idx_ft_date.
+        // Month view — uses idx_ft_date. Returns ONLY this month's rows
+        // regardless of total table size (200K rows or 2K — same cost).
         query = query
           .gte('date', startDate)
           .lte('date', endDate)
@@ -203,8 +285,49 @@ export function useTransactions(
       if (error) throw error
 
       const transformed = (data as RawTransaction[]).map(transform)
-      return groupByDate(transformed)
+      const flagged     = flagLoanPaymentRows(transformed)
+      return groupByDate(flagged)
     },
     staleTime: 1000 * 60,
   })
+}
+
+// ════════════════════════════════════════════════════════════════
+// flagLoanPaymentRows — set is_loan_payment=true on EVERY raw row that
+// belongs to a loan-payment group (capital, interest, AND the liability
+// Transfer leg), WITHOUT merging them.
+//
+// Why this is separate from mergeLoanPayments():
+//   • Detection must work in ALL views (filtered or not), so the detail
+//     panel and account-filtered list can recognise a loan-payment row
+//     even when the merge has NOT run.
+//   • This pass keeps the rows individual (so subcategory drill-downs
+//     still see the true per-row amounts) — it only sets a boolean.
+//
+// A group is a loan payment iff it contains a 'Loan Capital' row.
+// Cost: O(n) over the already month-bounded array.
+// ════════════════════════════════════════════════════════════════
+function flagLoanPaymentRows(txns: Transaction[]): Transaction[] {
+  // Which transfer groups are loan payments?
+  const loanGroupIds = new Set<string>()
+  for (const t of txns) {
+    if (t.transfer_group_id && t.ex_sub_category === 'Loan Capital') {
+      loanGroupIds.add(t.transfer_group_id)
+    }
+  }
+  if (loanGroupIds.size === 0) return txns
+
+  return txns.map(t =>
+    t.transfer_group_id && loanGroupIds.has(t.transfer_group_id)
+      ? {
+          ...t,
+          is_loan_payment: true,
+          // The liability 'Transfer' leg must NOT be treated as a normal
+          // transfer anywhere — clear its transfer flags so the detail
+          // panel never routes it through the transfer reconstruction.
+          is_transfer:     false,
+          is_transfer_fee: false,
+        }
+      : t,
+  )
 }
