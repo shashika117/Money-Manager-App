@@ -3,17 +3,31 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn, todayLocal } from '@/lib/utils'
 import { useAccounts } from '@/hooks/useAccounts'
-import { useGoals }    from '@/hooks/useGoals'
+import { useGoalsEnriched } from '@/hooks/useGoalsEnriched'
+import { useGoalBudgetForMonth } from '@/hooks/useGoalMisc'
+import { fmtAmt } from '@/lib/goalFormat'
 import { useAddTransfer } from '@/hooks/useTransactionMutations'
+
+// Turn the raw RPC error into the spec's user-facing message.
+// The RPC raises: "DUPLICATE_ALLOCATION:Funds have already been allocated
+// to <Goal> for <Mon YYYY>." — we append the guidance sentence.
+function formatTransferError(msg: string | undefined): string {
+  const raw = String(msg ?? '')
+  if (raw.includes('DUPLICATE_ALLOCATION:')) {
+    const detail = raw.split('DUPLICATE_ALLOCATION:')[1]?.trim() ?? ''
+    return `${detail} To prevent duplicates, allocations are limited to once per month per goal. Please update the existing transfer record instead.`
+  }
+  return raw || 'Transfer failed. Try again.'
+}
 
 interface TransferFormProps {
   onSuccess: () => void
-  initialDate?: string    // NEW
+  initialDate?: string
   initialAccount?: string
-  onCancel?:    () => void    // ← add this
+  onCancel?:    () => void
 }
 
-// ── Zod schema ─────────────────────────────────────────────────────
+// ── Zod schema (From Funds removed) ────────────────────────────────
 const schema = z
   .object({
     date:         z.string().min(1, 'Date is required'),
@@ -25,9 +39,7 @@ const schema = z
       .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0, {
         message: 'Amount must be a positive number',
       }),
-    fee:        z.string().optional(),   // stored as string from input, parsed on submit
-    from_funds: z.boolean(),
-    goal_name:  z.string().optional(),
+    fee:        z.string().optional(),
     note:       z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -38,22 +50,13 @@ const schema = z
         path: ['to_account'],
       })
     }
-    if (data.from_funds && !data.goal_name) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Select which goal this transfer is coming from',
-        path: ['goal_name'],
-      })
-    }
   })
 
 type FormData = z.infer<typeof schema>
 
-
-// ── Component ──────────────────────────────────────────────────────
 export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel }: TransferFormProps) {
   const { data: accounts = [], isLoading: accLoading } = useAccounts()
-  const { data: goals = [],    isLoading: gLoading   } = useGoals()
+  const { goals } = useGoalsEnriched()
   const addTransfer = useAddTransfer()
 
   const {
@@ -65,19 +68,29 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      date: initialDate ?? todayLocal(), // Changed from todayString()
+      date: initialDate ?? todayLocal(),
       from_account: initialAccount ?? '',
       to_account:   '',
       amount:       '',
       fee:          '',
-      from_funds:   false,
-      goal_name:    '',
       note:         '',
     },
   })
 
-  const watchFromFunds   = watch('from_funds')
   const watchFromAccount = watch('from_account')
+  const watchToAccount   = watch('to_account')
+  const watchDate        = watch('date')
+
+  // If the destination account is linked to a goal, the backend will
+  // auto-create that goal's Monthly Allocation — surface which goal.
+  const linkedGoal = watchToAccount
+    ? goals.find(g => g.linked_account === watchToAccount) ?? null
+    : null
+
+  // Month-specific budget (goal_budget_data) for the transfer's date-month.
+  const monthKey = watchDate ? `${watchDate.slice(0, 7)}-01` : null
+  const { data: budgetMap } = useGoalBudgetForMonth(linkedGoal ? monthKey : null)
+  const linkedGoalBudget = linkedGoal ? budgetMap?.get(linkedGoal.goal_name) ?? null : null
 
   // ── Submit ────────────────────────────────────────────────────────
   async function onSubmit(data: FormData) {
@@ -89,8 +102,6 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
         amount:       parseFloat(data.amount),
         fee:          data.fee ? parseFloat(data.fee) : 0,
         note:         data.note ?? '',
-        from_funds:   data.from_funds,
-        goal_name:    data.from_funds ? data.goal_name : undefined,
       })
 
       reset({ date: todayLocal() })
@@ -100,7 +111,7 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
     }
   }
 
-  if (accLoading || gLoading) {
+  if (accLoading) {
     return (
       <div className="flex items-center justify-center py-10">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue border-t-transparent" />
@@ -188,6 +199,27 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
         )}
       </div>
 
+      {/* ── Linked goal (auto-shown when To account is goal-linked) ── */}
+      {linkedGoal && (
+        <div className="rounded-xl border border-cyan/30 bg-cyan/5 px-4 py-3 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">📎</span>
+            <span className="font-dm text-xs uppercase tracking-wider text-cyan">Linked goal</span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between gap-3">
+            <span className="font-sora text-sm font-semibold text-white truncate">{linkedGoal.goal_name}</span>
+            {linkedGoalBudget != null && (
+              <span className="font-dm text-xs text-soft flex-none">
+                Budget <span className="font-sora font-semibold text-cyan tabular-nums">{fmtAmt(linkedGoalBudget)}</span>
+              </span>
+            )}
+          </div>
+          <p className="mt-1.5 font-dm text-[11px] text-muted leading-relaxed">
+            This transfer will also record a Monthly Allocation to this goal (once per month).
+          </p>
+        </div>
+      )}
+
       {/* ── Amount ── */}
       <div>
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
@@ -232,58 +264,7 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
         />
       </div>
 
-      {/* ── From Funds checkbox ── */}
-      <div className="rounded-xl border border-line bg-panel px-4 py-3">
-        <label className="flex cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
-            {...register('from_funds')}
-            className="h-5 w-5 cursor-pointer accent-amber rounded"
-          />
-          <span className="font-dm text-sm text-white">
-            From Funds
-          </span>
-          <span className="ml-auto font-dm text-xs text-soft">
-            Transfer uses savings / goal money
-          </span>
-        </label>
-      </div>
-
-      {/* ── Goal selector (shown only when From Funds is checked) ── */}
-      {watchFromFunds && (
-        <div className="animate-fade-in">
-          <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
-            Transfer from Goal
-          </label>
-          <div className="relative">
-            <select
-              {...register('goal_name')}
-              className={cn(
-                'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-                'font-dm text-sm text-white outline-none transition-colors focus:border-amber',
-                errors.goal_name ? 'border-red' : 'border-line',
-              )}
-            >
-              <option value="" disabled>Which goal is funding this transfer?</option>
-              {goals.map(g => (
-                <option key={g.id} value={g.goal_name}>
-                  {g.goal_name}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-          </div>
-          {errors.goal_name && (
-            <p className="mt-1 font-dm text-xs text-red">{errors.goal_name.message}</p>
-          )}
-          <p className="mt-1.5 font-dm text-xs text-soft">
-            This will deduct from the goal's savings balance.
-          </p>
-        </div>
-      )}
-
       {/* ── Note ── */}
-      {/* AFTER — multi-line textarea */}
       <div>
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
           Note <span className="normal-case text-muted">(optional)</span>
@@ -302,8 +283,8 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
       {/* ── Server error ── */}
       {addTransfer.isError && (
         <div className="rounded-xl border border-red/30 bg-red/10 px-4 py-3">
-          <p className="font-dm text-sm text-red">
-            {addTransfer.error?.message ?? 'Transfer failed. Try again.'}
+          <p className="font-dm text-sm text-red leading-relaxed">
+            {formatTransferError(addTransfer.error?.message)}
           </p>
         </div>
       )}

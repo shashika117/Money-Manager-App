@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/hooks/useTransactions'
 import { useTransferGroup, useLoanPaymentGroup } from '@/hooks/useEditTransaction'
+import { useGoalsEnriched } from '@/hooks/useGoalsEnriched'
 import {
   useDeleteRegularTransaction,
   useDeleteSinkingFundExpense,
@@ -121,6 +122,16 @@ export function TransactionDetailPanel({ transaction, onClose }: Props) {
   const { data: transferGroup, isLoading: tgLoading } = useTransferGroup(
     isAnyTransferRow ? transaction?.transfer_group_id : null
   )
+
+  // Derive the goal linked to this transfer's destination account, so the
+  // "Goal" field shows regardless of where the panel was opened from
+  // (Goals table sets transaction.goal; the Transactions table does not —
+  // there the To account is the only signal, so we resolve it here).
+  const { goals: enrichedGoals } = useGoalsEnriched()
+  const linkedTransferGoal =
+    isAnyTransferRow && transferGroup?.to_account
+      ? (enrichedGoals.find(g => g.linked_account === transferGroup.to_account)?.goal_name ?? null)
+      : null
 
   // Fetch the loan-payment group (capital + interest + liability leg) the same way.
   const { data: loanPaymentGroup, isLoading: lpLoading } = useLoanPaymentGroup(
@@ -327,11 +338,13 @@ export function TransactionDetailPanel({ transaction, onClose }: Props) {
                       </DetailField>
                     )}
 
-                    {!transaction.is_transfer_fee
-                      && transferGroup.from_funds
-                      && transferGroup.goal_name && (
-                      <DetailField label="From Goal">
-                        <span className="font-dm text-sm text-amber">{transferGroup.goal_name}</span>
+                    {/* Linked goal — when the To account is tied to a goal,
+                        this transfer also recorded that goal's Monthly
+                        Allocation. Resolved from the account, so it shows
+                        no matter where the panel was opened from. */}
+                    {!transaction.is_transfer_fee && linkedTransferGoal && (
+                      <DetailField label="Goal">
+                        <span className="font-dm text-sm text-cyan">📎 {linkedTransferGoal}</span>
                       </DetailField>
                     )}
                   </>
@@ -345,8 +358,9 @@ export function TransactionDetailPanel({ transaction, onClose }: Props) {
                 </span>
               </DetailField>
 
-              {/* Goal (Sinking Funds expense only) */}
-              {transaction.goal && (
+              {/* Goal (Sinking Funds expense only — transfers show the
+                  linked goal above, so exclude them here to avoid dupes) */}
+              {transaction.goal && !isAnyTransferRow && (
                 <DetailField label="Goal">
                   <span className="font-dm text-sm text-amber">{transaction.goal}</span>
                 </DetailField>

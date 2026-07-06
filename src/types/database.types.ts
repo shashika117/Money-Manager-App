@@ -124,6 +124,7 @@ export type Database = {
           goal_name: string
           id: string
           is_active: boolean
+          linked_account: string | null
           sort_order: number
           target_amount: number | null
           target_date: string | null
@@ -134,6 +135,7 @@ export type Database = {
           goal_name: string
           id?: string
           is_active?: boolean
+          linked_account?: string | null
           sort_order?: number
           target_amount?: number | null
           target_date?: string | null
@@ -144,12 +146,28 @@ export type Database = {
           goal_name?: string
           id?: string
           is_active?: boolean
+          linked_account?: string | null
           sort_order?: number
           target_amount?: number | null
           target_date?: string | null
           template_budget?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "dim_goal_linked_account_fkey"
+            columns: ["linked_account"]
+            isOneToOne: false
+            referencedRelation: "dim_account"
+            referencedColumns: ["master_account"]
+          },
+          {
+            foreignKeyName: "dim_goal_linked_account_fkey"
+            columns: ["linked_account"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["master_account"]
+          },
+        ]
       }
       dim_sub_category: {
         Row: {
@@ -505,6 +523,7 @@ export type Database = {
           month: string | null
           total_income: number | null
           total_needs_cost: number | null
+          total_savings: number | null
           total_wants_cost: number | null
         }
         Relationships: []
@@ -569,6 +588,17 @@ export type Database = {
         Args: { p_target_month: string }
         Returns: string
       }
+      create_goal_transfer: {
+        Args: {
+          p_amount: number
+          p_date: string
+          p_from_goal: string
+          p_note?: string
+          p_to_goal: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       create_loan_payment: {
         Args: {
           p_capital_amount: number
@@ -604,6 +634,10 @@ export type Database = {
           p_to_account: string
           p_user_id?: string
         }
+        Returns: Json
+      }
+      delete_goal_transfer: {
+        Args: { p_transfer_group_id: string }
         Returns: Json
       }
       delete_loan_payment: {
@@ -659,6 +693,10 @@ export type Database = {
           template_budget: number
         }[]
       }
+      get_goal_current_balance: {
+        Args: { p_goal_name: string }
+        Returns: number
+      }
       get_monthly_cashflow: {
         Args: { p_include_sinking_funds?: boolean }
         Returns: {
@@ -691,9 +729,22 @@ export type Database = {
           month_date: string
         }[]
       }
+      get_total_left_to_save: { Args: never; Returns: number }
       recalculate_account_balances: { Args: never; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      update_goal_transfer: {
+        Args: {
+          p_amount: number
+          p_date: string
+          p_from_goal: string
+          p_note?: string
+          p_to_goal: string
+          p_transfer_group_id: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       update_loan_payment: {
         Args: {
           p_capital_amount: number
@@ -778,6 +829,17 @@ export type Database = {
           p_month: string
         }
         Returns: undefined
+      }
+      upsert_monthly_allocation: {
+        Args: {
+          p_amount: number
+          p_date: string
+          p_force?: boolean
+          p_goal_name: string
+          p_note?: string
+          p_user_id?: string
+        }
+        Returns: Json
       }
     }
     Enums: {

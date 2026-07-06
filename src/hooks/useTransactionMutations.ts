@@ -14,11 +14,15 @@ const INVALIDATE_KEYS = [
   ['calendar_daily'],
   ['monthly_cashflow'],
   ['transactions_search'],
-  // ── ADDED: keeps the Budget page's Actual column and summary cards
-  //    live whenever a transaction is added/edited/deleted, instead of
-  //    showing stale numbers until the user navigates away and back.
   ['budget_table'],
   ['budget_summary'],
+  // ── ADDED: a Transfer into a goal-linked account now auto-creates a
+  //    Monthly Allocation server-side, so every transfer write must also
+  //    refresh the Goals views — not just Sinking Funds expenses anymore.
+  ['goals_all'],
+  ['goal_activity'],
+  ['total_left_to_save'],
+  ['monthly_left_to_save'],
 ]
 
 // ── Payload types ──────────────────────────────────────────────────
@@ -41,6 +45,9 @@ export interface IncomePayload {
   note:            string
 }
 
+// From Funds REMOVED — transfers no longer withdraw from a goal.
+// Deducting saved money from a goal is done only via the Expense flow
+// (category = 'Sinking Funds').
 export interface TransferPayload {
   date:          string
   from_account:  string
@@ -48,8 +55,6 @@ export interface TransferPayload {
   amount:        number
   fee:           number
   note:          string
-  from_funds:    boolean
-  goal_name?:    string   // required when from_funds = true
 }
 
 // ── useAddExpense ──────────────────────────────────────────────────
@@ -135,6 +140,11 @@ export function useAddIncome() {
 }
 
 // ── useAddTransfer ─────────────────────────────────────────────────
+// From Funds params removed from the RPC call. If the To account is
+// linked to a goal, create_transfer() auto-creates a Monthly Allocation
+// server-side (once per month per goal) — nothing extra to send here.
+// A duplicate-allocation attempt raises 'DUPLICATE_ALLOCATION:...',
+// which surfaces through `error` below for the form to display.
 export function useAddTransfer() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -151,8 +161,6 @@ export function useAddTransfer() {
         p_fee:          payload.fee ?? 0,
         p_note:         payload.note || undefined,
         p_user_id:      user.id,
-        p_from_funds:   payload.from_funds,
-        p_goal_name:    payload.from_funds ? (payload.goal_name ?? undefined) : undefined,
       })
 
       if (error) throw error

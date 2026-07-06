@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn } from '@/lib/utils'
 import { useAccounts } from '@/hooks/useAccounts'
-import { useGoals }   from '@/hooks/useGoals'
+import { useGoalsEnriched } from '@/hooks/useGoalsEnriched'
+import { useGoalBudgetForMonth } from '@/hooks/useGoalMisc'
+import { fmtAmt } from '@/lib/goalFormat'
 import type { TransferGroupData } from '@/hooks/useEditTransaction'
 import { useUpdateTransfer } from '@/hooks/useEditTransaction'
 
@@ -13,18 +15,23 @@ const schema = z.object({
   to_account:   z.string().min(1, 'Select destination account'),
   amount:       z.string().min(1).refine(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0, { message: 'Enter a positive amount' }),
   fee:          z.string().optional(),
-  from_funds:   z.boolean(),
-  goal_name:    z.string().optional(),
   note:         z.string().optional(),
 }).superRefine((d, ctx) => {
   if (d.from_account && d.to_account && d.from_account === d.to_account) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Accounts must be different', path: ['to_account'] })
   }
-  if (d.from_funds && !d.goal_name) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Select a goal', path: ['goal_name'] })
-  }
 })
 type FormData = z.infer<typeof schema>
+
+// Turn the raw RPC error into the spec's user-facing message.
+function formatTransferError(msg: string | undefined): string {
+  const raw = String(msg ?? '')
+  if (raw.includes('DUPLICATE_ALLOCATION:')) {
+    const detail = raw.split('DUPLICATE_ALLOCATION:')[1]?.trim() ?? ''
+    return `${detail} To prevent duplicates, allocations are limited to once per month per goal. Please update the existing transfer record instead.`
+  }
+  return raw || 'Update failed. Try again.'
+}
 
 interface Props {
   transferData: TransferGroupData
@@ -34,7 +41,7 @@ interface Props {
 
 export function EditTransferForm({ transferData, onSuccess, onCancel }: Props) {
   const { data: accounts = [] } = useAccounts()
-  const { data: goals    = [] } = useGoals()
+  const { goals } = useGoalsEnriched()
   const updateTransfer = useUpdateTransfer()
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
@@ -45,14 +52,23 @@ export function EditTransferForm({ transferData, onSuccess, onCancel }: Props) {
       to_account:   transferData.to_account,
       amount:       String(transferData.amount),
       fee:          transferData.fee > 0 ? String(transferData.fee) : '',
-      from_funds:   transferData.from_funds,
-      goal_name:    transferData.goal_name ?? '',
       note:         transferData.note ?? '',
     },
   })
 
-  const watchFromFunds   = watch('from_funds')
   const watchFromAccount = watch('from_account')
+  const watchToAccount   = watch('to_account')
+  const watchDate        = watch('date')
+
+  // Linked goal for the destination account (drives the auto-allocation).
+  const linkedGoal = watchToAccount
+    ? goals.find(g => g.linked_account === watchToAccount) ?? null
+    : null
+
+  // Month-specific budget (goal_budget_data) for the transfer's date-month.
+  const monthKey = watchDate ? `${watchDate.slice(0, 7)}-01` : null
+  const { data: budgetMap } = useGoalBudgetForMonth(linkedGoal ? monthKey : null)
+  const linkedGoalBudget = linkedGoal ? budgetMap?.get(linkedGoal.goal_name) ?? null : null
 
   async function onSubmit(data: FormData) {
     try {
@@ -64,8 +80,6 @@ export function EditTransferForm({ transferData, onSuccess, onCancel }: Props) {
         amount:       parseFloat(data.amount),
         fee:          data.fee ? parseFloat(data.fee) : 0,
         note:         data.note ?? '',
-        from_funds:   data.from_funds,
-        goal_name:    data.from_funds ? (data.goal_name ?? null) : null,
       })
       onSuccess()
     } catch (err) {
@@ -115,6 +129,27 @@ export function EditTransferForm({ transferData, onSuccess, onCancel }: Props) {
         {errors.to_account && <p className="mt-1 font-dm text-xs text-red">{errors.to_account.message}</p>}
       </div>
 
+      {/* Linked goal (auto-shown when To account is goal-linked) */}
+      {linkedGoal && (
+        <div className="rounded-xl border border-cyan/30 bg-cyan/5 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">📎</span>
+            <span className="font-dm text-xs uppercase tracking-wider text-cyan">Linked goal</span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between gap-3">
+            <span className="font-sora text-sm font-semibold text-white truncate">{linkedGoal.goal_name}</span>
+            {linkedGoalBudget != null && (
+              <span className="font-dm text-xs text-soft flex-none">
+                Budget <span className="font-sora font-semibold text-cyan tabular-nums">{fmtAmt(linkedGoalBudget)}</span>
+              </span>
+            )}
+          </div>
+          <p className="mt-1.5 font-dm text-[11px] text-muted leading-relaxed">
+            This transfer records a Monthly Allocation to this goal (once per month).
+          </p>
+        </div>
+      )}
+
       <div>
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">Amount (Rs)</label>
         <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00" {...register('amount')}
@@ -130,31 +165,8 @@ export function EditTransferForm({ transferData, onSuccess, onCancel }: Props) {
         />
       </div>
 
-      <div className="rounded-xl border border-line bg-panel px-4 py-3">
-        <label className="flex cursor-pointer items-center gap-3">
-          <input type="checkbox" {...register('from_funds')} className="h-5 w-5 cursor-pointer accent-amber rounded" />
-          <span className="font-dm text-sm text-white">From Funds</span>
-          <span className="ml-auto font-dm text-xs text-soft">Transfer uses goal savings</span>
-        </label>
-      </div>
-
-      {watchFromFunds && (
-        <div>
-          <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">Goal</label>
-          <div className="relative">
-            <select {...register('goal_name')} className={selectCls(errors.goal_name)}>
-              <option value="" disabled>Select goal…</option>
-              {goals.map(g => <option key={g.id} value={g.goal_name}>{g.goal_name}</option>)}
-            </select>
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-          </div>
-          {errors.goal_name && <p className="mt-1 font-dm text-xs text-red">{errors.goal_name.message}</p>}
-        </div>
-      )}
-
       <div>
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">Note <span className="normal-case text-muted">(optional)</span></label>
-        {/* AFTER */}
         <textarea
           placeholder="Add a note…"
           {...register('note')}
@@ -164,7 +176,7 @@ export function EditTransferForm({ transferData, onSuccess, onCancel }: Props) {
 
       {updateTransfer.isError && (
         <div className="rounded-xl border border-red/30 bg-red/10 px-4 py-3">
-          <p className="font-dm text-sm text-red">Update failed. Try again.</p>
+          <p className="font-dm text-sm text-red leading-relaxed">{formatTransferError(updateTransfer.error?.message)}</p>
         </div>
       )}
 

@@ -14,12 +14,20 @@ const KEYS = [
   ['goals'],
   ['monthly_cashflow'],
   ['transactions_search'],
+  // ── ADDED: editing/updating a transfer can create or move a linked
+  //    Monthly Allocation (or a linked transfer's own edit), so the
+  //    Goals views must refresh alongside everything else.
+  ['goals_all'],
+  ['goal_activity'],
+  ['total_left_to_save'],
+  ['monthly_left_to_save'],
 ]
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   KEYS.forEach(k => qc.invalidateQueries({ queryKey: k }))
 }
 
 // ── Reconstructed transfer data used to pre-populate edit form ──────
+// From Funds fields REMOVED — transfers no longer withdraw from a goal.
 export interface TransferGroupData {
   transfer_group_id: string
   date:              string
@@ -28,11 +36,15 @@ export interface TransferGroupData {
   amount:            number
   fee:               number
   note:              string | null
-  from_funds:        boolean
-  goal_name:         string | null
 }
 
 // ── Fetch and reconstruct all rows in a transfer group ───────────────
+// The fact_goal lookup is REMOVED — transfers no longer create a linked
+// fact_goal row (that was the old From-Funds "Sinking Funds" write).
+// Any OLD From-Funds rows from before this change still exist in
+// fact_goal and are still cleaned up correctly by update_transfer /
+// delete_transfer (both clear rows by transfer_group_id) — they are
+// simply no longer read back into the edit form.
 export function useTransferGroup(transferGroupId: string | null | undefined) {
   return useQuery<TransferGroupData | null>({
     queryKey: ['transfer_group', transferGroupId],
@@ -45,17 +57,9 @@ export function useTransferGroup(transferGroupId: string | null | undefined) {
         .eq('transfer_group_id', transferGroupId)
       if (e1) throw e1
 
-      const { data: goalRows, error: e2 } = await supabase
-        .from('fact_goal')
-        .select('goal')
-        .eq('transfer_group_id', transferGroupId)
-        .limit(1)
-      if (e2) throw e2
-
       const outRow  = txns?.find(t => t.ex_sub_category === 'Transfer' && t.singed_amount < 0)
       const inRow   = txns?.find(t => t.ex_sub_category === 'Transfer' && t.singed_amount > 0)
       const feeRow  = txns?.find(t => t.ex_sub_category === 'Fees & Taxes')
-      const goalRow = goalRows?.[0]
 
       return {
         transfer_group_id: transferGroupId,
@@ -65,8 +69,6 @@ export function useTransferGroup(transferGroupId: string | null | undefined) {
         amount:       Math.abs(outRow?.singed_amount ?? 0),
         fee:          Math.abs(feeRow?.singed_amount ?? 0),
         note:         outRow?.note ?? null,
-        from_funds:   !!goalRow,
-        goal_name:    goalRow?.goal ?? null,
       }
     },
     enabled: !!transferGroupId,
@@ -75,11 +77,7 @@ export function useTransferGroup(transferGroupId: string | null | undefined) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// ADD THIS to useEditTransaction.ts — place it right after
-// useTransferGroup (same file, same import block already covers it).
-// Mirrors useTransferGroup's exact pattern: fetch all rows sharing
-// the transfer_group_id, reconstruct the logical "loan payment" shape
-// the edit form and detail panel need.
+// Loan payment reconstruction — UNCHANGED, unrelated to From Funds.
 // ════════════════════════════════════════════════════════════════
 
 // ── Reconstructed loan-payment data used to pre-populate edit form ──
@@ -181,6 +179,11 @@ export function useUpdateSinkingFundExpense() {
 }
 
 // ── Update Transfer ──────────────────────────────────────────────────
+// From Funds params REMOVED from the RPC call. If the (possibly new)
+// To account is linked to a goal, update_transfer() auto-creates the
+// Monthly Allocation server-side, guarded once-per-month excluding this
+// transfer's own existing allocation. A duplicate attempt raises
+// 'DUPLICATE_ALLOCATION:...', surfaced through `error` for the form.
 export function useUpdateTransfer() {
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -193,10 +196,8 @@ export function useUpdateTransfer() {
         p_to_account:        p.to_account,
         p_amount:            p.amount,
         p_fee:               p.fee,
-        p_note:              p.note         || undefined,
+        p_note:              p.note || undefined,
         p_user_id:           user?.id,
-        p_from_funds:        p.from_funds,
-        p_goal_name:         p.from_funds ? (p.goal_name ?? undefined) : undefined,
       })
       if (error) throw error
     },
