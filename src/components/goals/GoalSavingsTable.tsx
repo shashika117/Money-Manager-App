@@ -18,7 +18,7 @@
 //   • Sinking Funds     → TransactionDetailPanel
 //   • Funds Transfer    → EditGoalTransferSheet
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { fmtAmt, fmtSignedAmt } from '@/lib/goalFormat'
 import {
@@ -80,7 +80,9 @@ function toTxnShape(rec: GoalActivityRecord): Transaction {
   }
 }
 
-export function GoalSavingsTable() {
+export function GoalSavingsTable({ onActivePanelChange }: {
+  onActivePanelChange?: (open: boolean) => void
+} = {}) {
   const now = new Date()
   const [anchor, setAnchor] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 })
   const { sections, isLoading, isError } = useGoalSavingsTable(anchor.year, anchor.month)
@@ -96,6 +98,14 @@ export function GoalSavingsTable() {
   const [allocPanel, setAllocPanel] = useState<
     { month: string; goal?: string; amount?: number; note?: string | null } | null
   >(null)
+
+  // Tell the parent when any side panel is open, so it can hide the FAB
+  // (the FAB would otherwise show through the panels' translucent overlay).
+  const anyPanelOpen = !!(editTransfer || detailTxn || allocPanel)
+  useEffect(() => {
+    onActivePanelChange?.(anyPanelOpen)
+    return () => onActivePanelChange?.(false)
+  }, [anyPanelOpen, onActivePanelChange])
 
   function openPicker() {
     if (slotBtnRef.current) {
@@ -131,7 +141,7 @@ export function GoalSavingsTable() {
   return (
     <div className="bg-navy overflow-hidden">
       {/* 4-month selector header (table title bar — stays above the scroll) */}
-<div className="flex items-center justify-between px-4 py-3 rounded-t-2xl border-b border-line bg-gradient-to-t from-line/40 to-transparent">
+      <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl border-b border-line bg-gradient-to-t from-line/30 to-transparent">
         <span className="font-sora text-sm font-bold text-soft">Goal Activities</span>
         <button ref={slotBtnRef} onClick={openPicker}
           className="font-sora text-sm font-semibold text-white hover:text-cyan transition-colors select-none">

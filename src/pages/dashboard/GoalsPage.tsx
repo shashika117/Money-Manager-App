@@ -44,6 +44,11 @@ export default function GoalsPage() {
   const [formGoal, setFormGoal] = useState<EnrichedGoal | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
+  const [tablePanelOpen, setTablePanelOpen] = useState(false)
+
+  // Any full-screen panel open? Hide the FAB so it doesn't show through
+  // the panels' translucent overlay.
+  const anyPanelOpen = formOpen || fabOpen || tablePanelOpen
 
   const visibleGoals = showAll ? goals : goals.filter(g => g.is_active)
 
@@ -97,7 +102,7 @@ export default function GoalsPage() {
             </div>
             <div className="w-2/5 sticky top-0 flex flex-col gap-5">
               <LeftToSaveCard />
-              <GoalSavingsTable />
+              <GoalSavingsTable onActivePanelChange={setTablePanelOpen} />
             </div>
           </div>
         ) : (
@@ -105,15 +110,23 @@ export default function GoalsPage() {
           <div className="flex flex-col gap-5">
             <LeftToSaveCard />
             <GoalCardsSection goals={visibleGoals} isLaptop={false} onOpenSettings={openEdit} />
-            <GoalSavingsTable />
+            <GoalSavingsTable onActivePanelChange={setTablePanelOpen} />
           </div>
         )}
       </div>
 
-      {/* ── Sticky cyan FAB — position synced with the Transactions FAB ── */}
-      {/* Transactions uses <FAB> = `fixed right-5 z-40 bottom-24 md:bottom-6`. */}
-      <button onClick={() => setFabOpen(true)} aria-label="Allocate or share funds"
-        className="fixed right-5 z-40 bottom-24 md:bottom-6 h-14 w-14 rounded-full bg-cyan shadow-lg shadow-cyan/30 flex items-center justify-center font-sora text-2xl font-light text-navy transition-all active:scale-90 touch-manipulation">
+      {/* ── Sticky cyan FAB — Always kept in DOM, visibility handled via transitions ── */}
+      <button 
+        onClick={() => setFabOpen(true)} 
+        aria-label="Allocate or share funds"
+        className={cn(
+          "fixed right-5 z-40 bottom-24 md:bottom-6 h-14 w-14 rounded-full bg-cyan shadow-lg shadow-cyan/30 flex items-center justify-center font-sora text-2xl font-light text-navy touch-manipulation active:scale-90",
+          "transition-all ease-in-out",
+          anyPanelOpen 
+            ? "opacity-0 scale-75 pointer-events-none duration-150" 
+            : "opacity-100 scale-100 duration-200"
+        )}
+      >
         +
       </button>
 

@@ -4,7 +4,7 @@
 // each year shows three slots: "Jan – Apr", "May – Aug", "Sep – Dec".
 // A "Today" button jumps to the current month's slot.
 
-import { useState } from 'react'
+import { useState, useLayoutEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -30,12 +30,28 @@ export function FourMonthPicker({ anchorYear, anchorMonth, pos, onSelect, onClos
   const [py, setPy] = useState(anchorYear)
   const activeSlotStart = slotOf(anchorMonth)
 
+  // Keep the popup fully on-screen: if opening below the label would run
+  // it off the bottom (common when the label is near the bottom on a
+  // phone), shift it up so its whole height stays within the viewport.
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [top, setTop] = useState(pos.top)
+  useLayoutEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    const margin = 8
+    const h = el.offsetHeight   // layout height (unaffected by the scale animation)
+    let t = pos.top
+    if (t + h > window.innerHeight - margin) t = window.innerHeight - h - margin
+    if (t < margin) t = margin
+    setTop(t)
+  }, [pos.top])
+
   return (
     <>
       <div className="fixed inset-0 z-[60] bg-black/60 animate-fade-in" onClick={onClose} />
-      <div className="fixed z-[61] w-72 rounded-2xl bg-card border border-line shadow-2xl p-4 animate-fade-in-scale"
-        style={{ top: pos.top, left: pos.left }}>
-
+      <div ref={panelRef}
+        className="fixed z-[61] w-72 rounded-2xl bg-card border border-line shadow-2xl p-4 animate-fade-in-scale"
+        style={{ top, left: pos.left }}>
         {/* Year navigator */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => setPy(y => y - 1)}

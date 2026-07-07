@@ -10,7 +10,7 @@
 //   1. goal name unique          → "The [name] already exists"
 //   2. account not already linked → "The [account] is already linked to [goal]"
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
