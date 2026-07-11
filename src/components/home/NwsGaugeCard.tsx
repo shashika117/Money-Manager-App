@@ -85,7 +85,7 @@ export function NwsGaugeCard() {
             </svg>
 
             {/* Numeric value */}
-            <div className="-mt-3 text-center">
+            <div className="mt-2 text-center">
               <p className="font-sora text-2xl font-bold tabular-nums leading-none"
                 style={{ color }}>
                 {score.toFixed(0)}%

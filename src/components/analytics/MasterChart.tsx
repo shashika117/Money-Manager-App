@@ -22,7 +22,7 @@ import {
 } from 'recharts'
 
 import { fmtAmt, fmtCompact } from '@/lib/analyticsFormat'
-import { bucketColor, muted } from '@/lib/analyticsColors'
+import { bucketColor, muted, OTHER_COLOR } from '@/lib/analyticsColors'
 import {
   type AnalyticsTab, type Hierarchy, type DonutView, type Focus,
   focusLabel, monthShort, enumerateMonths,
@@ -92,7 +92,8 @@ function AreaView({ tab, months, focus, scope, scopeKeyName }: Props) {
         <ErrorBox />
       ) : (
         <ResponsiveContainer width="100%" height={CHART_H}>
-          <ComposedChart data={points} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
+          <ComposedChart data={points} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}
+            accessibilityLayer={false}>
             <defs>
               <linearGradient id="areaCur" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%"   stopColor={lineColor} stopOpacity={0.35} />
@@ -184,7 +185,12 @@ function ColumnView({
     () => enumerateMonths(months[0], months[months.length - 1]),
     [months],
   )
-  const { buckets, data } = useMemo(() => toColumns(rows, monthKeys, 6), [rows, monthKeys])
+  const { buckets, data, otherKey } = useMemo(() => toColumns(rows, monthKeys, 6), [rows, monthKeys])
+
+  // The synthetic spill bucket is always muted grey; every real bucket
+  // (including a genuine category literally named "Other") keeps its own
+  // stable palette colour.
+  const colorOf = (b: string) => (b === otherKey ? OTHER_COLOR : bucketColor(view.dimension, b))
 
   // Clicking a bar does the SAME thing as clicking its month label: isolate
   // that month (drilling from a bar was too easy to trigger by accident —
@@ -204,7 +210,7 @@ function ColumnView({
         legend={
           <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
             {buckets.map(b => (
-              <LegendKey key={b} color={bucketColor(view.dimension, b)} label={b} />
+              <LegendKey key={b} color={colorOf(b)} label={b} />
             ))}
           </div>
         }
@@ -220,7 +226,8 @@ function ColumnView({
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={CHART_H}>
-          <BarChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }} barGap={2} barCategoryGap="22%">
+          <BarChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }} barGap={2} barCategoryGap="22%"
+            accessibilityLayer={false}>
             <CartesianGrid stroke="#1e2d45" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="month"
@@ -236,7 +243,7 @@ function ColumnView({
             <Tooltip content={<ColumnTip />} cursor={{ fill: '#111e33', opacity: 0.5 }} />
 
             {buckets.map(b => {
-              const base = bucketColor(view.dimension, b)
+              const base = colorOf(b)
               return (
                 <Bar key={b} dataKey={b} radius={[3, 3, 0, 0]}
                   isAnimationActive animationDuration={600}

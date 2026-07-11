@@ -17,6 +17,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { CalendarWidget } from '@/components/layout/CalendarWidget'
+import { FAB }                  from '@/components/ui/FAB'
+import { AddTransactionSheet }  from '@/components/forms/AddTransactionSheet'
 import { HomeCard }             from '@/components/home/HomeCard'
 import { NwsGaugeCard }         from '@/components/home/NwsGaugeCard'
 import { AccountBalancesCard }  from '@/components/home/AccountBalancesCard'
@@ -46,6 +48,9 @@ function greeting(): string {
 export default function HomePage() {
   const { profile, signOut } = useAuth()
   const isLaptop = useIsLaptop()
+
+  // Add-transaction sheet (same FAB + sheet pair as the Transactions page).
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const now        = new Date()
   const monthTitle = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -102,6 +107,17 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* ── FAB + SHEET ──
+          Uses the SAME <FAB> component as the Transactions page, so the
+          position is identical on both laptop and mobile by construction
+          (fixed right-5 z-40 bottom-24 md:bottom-6) — nothing to keep in
+          sync manually. */}
+      <FAB onClick={() => setSheetOpen(true)} />
+      <AddTransactionSheet
+        isOpen={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+      />
     </div>
   )
 }

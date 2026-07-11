@@ -33,9 +33,11 @@ function alpha(hex: string, a: number): string {
 interface DateGroupHeaderProps {
   group: DateGroup
   onDateGroupSelect?: (date: string) => void
+  /** Hide the per-day income/expense totals on the right. */
+  hideTotals?: boolean
 }
 
-function DateGroupHeader({ group, onDateGroupSelect }: DateGroupHeaderProps) {
+function DateGroupHeader({ group, onDateGroupSelect, hideTotals }: DateGroupHeaderProps) {
   return (
     <div
       className={cn(
@@ -59,18 +61,24 @@ function DateGroupHeader({ group, onDateGroupSelect }: DateGroupHeaderProps) {
           {group.month_year}
         </span>
       </div>
-      <div className="flex items-center gap-2 mr-3">
-        {group.total_income > 0 && (
-          <span className="font-sora text-xs font-semibold text-green">
-            +{fmtAmt(group.total_income)}
-          </span>
-        )}
-        {group.total_expense > 0 && (
-          <span className="font-sora text-xs font-semibold text-red">
-            −{fmtAmt(group.total_expense)}
-          </span>
-        )}
-      </div>
+
+      {/* Day totals — suppressed on the Analytics page, where the day's
+          income/expense sums are meaningless against a filtered, scoped
+          slice of the data (e.g. only "Food" rows). */}
+      {!hideTotals && (
+        <div className="flex items-center gap-2 mr-3">
+          {group.total_income > 0 && (
+            <span className="font-sora text-xs font-semibold text-green">
+              +{fmtAmt(group.total_income)}
+            </span>
+          )}
+          {group.total_expense > 0 && (
+            <span className="font-sora text-xs font-semibold text-red">
+              −{fmtAmt(group.total_expense)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -156,6 +164,8 @@ interface TransactionTableProps {
   onDateGroupSelect?:  (date: string) => void
   /** OPTIONAL — per-row accent colour (Analytics group tinting). */
   rowAccent?:          RowAccentFn
+  /** OPTIONAL — hide the per-day totals in each date header (Analytics). */
+  hideDateTotals?:     boolean
 }
 
 export function TransactionTable({
@@ -165,6 +175,7 @@ export function TransactionTable({
   isError,
   onDateGroupSelect,
   rowAccent,
+  hideDateTotals = false,
 }: TransactionTableProps) {
 
   if (isLoading) {
@@ -207,7 +218,11 @@ export function TransactionTable({
     <div className="pb-4 animate-fade-in-scale">
       {groups.map(group => (
         <div key={group.date}>
-          <DateGroupHeader group={group} onDateGroupSelect={onDateGroupSelect} />
+          <DateGroupHeader
+            group={group}
+            onDateGroupSelect={onDateGroupSelect}
+            hideTotals={hideDateTotals}
+          />
           <div className="bg-card mx-3 rounded-xl overflow-hidden border border-line mb-3">
             {group.transactions.map((txn, i) => (
               <TransactionRow

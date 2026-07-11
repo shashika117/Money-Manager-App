@@ -122,6 +122,7 @@ export function AnalyticsHistoryTable({
           isLoading={isLoading}
           isError={isError}
           rowAccent={rowAccent}
+          hideDateTotals
         />
       </div>
 

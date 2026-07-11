@@ -8,7 +8,7 @@
 //   • "Other" (the column chart's top-6 spill bucket) is always muted.
 
 export const GROUP_COLORS: Record<string, string> = {
-  Needs: '#ec4899', // pink
+  Needs: '#ec4899', // pink #2166d9
   Wants: '#f59e0b', // amber
   Save:  '#22d3ee', // cyan
 }
@@ -48,8 +48,12 @@ function hashString(str: string): number {
   return Math.abs(h)
 }
 
+// NOTE: the column chart's synthetic spill bucket is coloured with
+// OTHER_COLOR by the chart itself (it knows which key is the spill one).
+// We deliberately do NOT special-case the name "Other" here, because a
+// REAL category can be named "Other" (transfer fees map to it) and it
+// deserves a proper palette colour of its own.
 export function categoryColor(name: string): string {
-  if (name === 'Other') return OTHER_COLOR
   return CATEGORY_PALETTE[hashString(name) % CATEGORY_PALETTE.length]
 }
 

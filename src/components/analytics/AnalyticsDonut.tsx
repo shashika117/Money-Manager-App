@@ -4,15 +4,15 @@
 //   • Slices = the current DonutView (group / category / subcategory,
 //     or income categories on the Earning tab).
 //   • Legend lists only NON-ZERO buckets; legend rows are clickable and
-//     do exactly what clicking a slice does.
-//   • Hover a slice OR a legend row → every OTHER slice + legend row is
-//     muted, and a floating card shows name / amount / percentage.
+//     are the ONLY drill control (slices are hover-only).
+//   • Hover a slice OR a legend row → every OTHER slice + legend row
+//     recedes, and a floating card shows name / amount / percentage.
 //   • Centre hole shows the total of the visible slices.
-//   • Back arrow (outside the ring) appears once drilled in.
+//   • Back arrow appears below the donut chart, top-left of the legend.
 //
 // Pure SVG (no recharts) so the hover-mute and legend sync stay exact.
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { fmtAmt, fmtCompact, fmtPct } from '@/lib/analyticsFormat'
 import { bucketColor } from '@/lib/analyticsColors'
@@ -29,16 +29,19 @@ const CX     = SIZE / 2
 const CY     = SIZE / 2
 const GAP    = 0.018   // radians of padding between slices
 
+// How far non-hovered elements recede. Higher = more visible.
+const DIM_SLICE = 0.50   // was 0.22 — muted slices were effectively invisible
+
 interface Props {
-  tab:            AnalyticsTab
-  bounds:         { start: string; endExclusive: string }
-  view:           DonutView
-  focus:          Focus              // the DRILL focus (what the donut shows)
-  selection:      Focus | null       // a terminal pick — highlights a legend row
-  activeMonth:    string | null      // isolate one month ('YYYY-MM'), or null = whole range
-  canDrillBack:   boolean
-  animKey:        number             // bump → replay the slide
-  animDir:        'down' | 'back'    // drill in → slide from right; back → from left
+  tab:           AnalyticsTab
+  bounds:        { start: string; endExclusive: string }
+  view:          DonutView
+  focus:         Focus              // the DRILL focus (what the donut shows)
+  selection:     Focus | null       // a terminal pick — highlights a legend row
+  activeMonth:   string | null      // isolate one month ('YYYY-MM'), or null = whole range
+  canDrillBack:  boolean
+  animKey:       number             // bump → replay the slide
+  animDir:       'down' | 'back'    // drill in → slide from right; back → from left
   onSelectBucket: (bucket: string) => void
   onDrillBack:    () => void
 }
@@ -65,7 +68,29 @@ export function AnalyticsDonut({
   }
 
   const arcs = useMemo(() => buildArcs(slices, total), [slices, total])
-  const hovered = hover ? slices.find(s => s.bucket === hover) ?? null : null
+
+  // ── Stale-hover guard ──────────────────────────────────────────────
+  // Clicking a legend row sets `hover` to that bucket, then drills — which
+  // swaps in a whole NEW set of buckets. The old `hover` value now matches
+  // nothing, so every slice would fail the `hover !== bucket` test and dim.
+  // (The legend button also unmounts mid-click, so its onMouseLeave never
+  // fires to clear it.) Treating a hover that isn't in the current slices
+  // as "no hover" means a stale value can never mute anything.
+  const hoverActive = hover && slices.some(s => s.bucket === hover) ? hover : null
+  const hovered = hoverActive ? slices.find(s => s.bucket === hoverActive) ?? null : null
+
+  // Belt-and-braces: drop the hover whenever the drill level changes.
+  useEffect(() => {
+    setHover(null)
+    setTip(null)
+  }, [view.dimension, view.filterGroup, view.filterCategory, animKey])
+
+  // Clear hover as we drill, so nothing lingers into the next level.
+  function handleSelect(bucket: string) {
+    setHover(null)
+    setTip(null)
+    onSelectBucket(bucket)
+  }
 
   // A terminal pick (Save / subcategory / income category) highlights its
   // legend row without moving the donut.
@@ -73,14 +98,8 @@ export function AnalyticsDonut({
 
   return (
     <div className="rounded-2xl border border-line bg-card p-4">
-      {/* Header: title + drill breadcrumb + back */}
+      {/* Header: title only (Back button lives below the ring) */}
       <div className="flex items-center gap-2 mb-2 min-h-[28px]">
-        {canDrillBack && (
-          <button onClick={onDrillBack} aria-label="Back"
-            className="h-7 w-7 flex-none flex items-center justify-center rounded-lg border border-line bg-navy font-sora text-sm text-soft hover:text-white hover:border-soft transition-colors">
-            ←
-          </button>
-        )}
         <div className="min-w-0">
           <p className="font-sora text-sm font-bold text-soft truncate">
             {tab === 'earn' ? 'Income by category' : donutTitle(view, focus)}
@@ -108,19 +127,17 @@ export function AnalyticsDonut({
           className={animDir === 'down' ? 'animate-slide-from-right' : 'animate-slide-from-left'}
         >
           {/* ── Ring ── */}
-          {/* Slices are HOVER-ONLY (no click). Drilling happens from the
-              legend rows below — clicking thin slices was fiddly and easy
-              to trigger by accident. */}
           <div ref={wrapRef} className="relative mx-auto" style={{ width: SIZE, height: SIZE }}
             onMouseLeave={() => { setHover(null); setTip(null) }}>
             <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-full">
               {arcs.map(a => {
                 const color  = bucketColor(view.dimension, a.bucket)
-                const isDim  = hover !== null && hover !== a.bucket
-                const isHot  = hover === a.bucket
+                const isDim  = hoverActive !== null && hoverActive !== a.bucket
+                const isHot  = hoverActive === a.bucket
 
                 const common = {
-                  opacity: isDim ? 0.22 : 1,
+                  // Muted slices stay clearly readable — recessed, not gone.
+                  opacity: isDim ? DIM_SLICE : 1,
                   style: {
                     transform: isHot ? 'scale(1.03)' : 'scale(1)',
                     transformOrigin: `${CX}px ${CY}px`,
@@ -130,7 +147,6 @@ export function AnalyticsDonut({
                   onMouseMove:  moveTip,
                 }
 
-                // Single bucket → a complete ring, drawn as a stroked circle.
                 return a.ring ? (
                   <circle key={a.bucket} cx={CX} cy={CY} r={MID_R}
                     fill="none" stroke={color} strokeWidth={BAND_W} {...common} />
@@ -177,20 +193,34 @@ export function AnalyticsDonut({
             )}
           </div>
 
-          {/* ── Legend — THE drill control (clickable; non-zero rows only) ── */}
-          <div className="mt-4 flex flex-col gap-0.5 max-h-[220px] overflow-y-auto">
+          {/* ── Back Button Row ── */}
+          {canDrillBack && (
+            <div className="mt-4 flex justify-flex-start px-2">
+              <button onClick={onDrillBack} aria-label="Back"
+                className="h-7 w-7 flex-none flex items-center justify-center rounded-lg border border-line bg-navy font-sora text-sm text-soft hover:text-white hover:border-soft transition-colors">
+                ←
+              </button>
+            </div>
+          )}
+
+          {/* ── Legend — THE drill control (dynamic mt depending on back button) ── */}
+          <div className={cn(
+            "flex flex-col gap-0.5 max-h-[220px] overflow-y-auto",
+            canDrillBack ? "mt-2" : "mt-4"
+          )}>
             {slices.map(s => {
               const color = bucketColor(view.dimension, s.bucket)
-              const isDim = hover !== null && hover !== s.bucket
+              const isDim = hoverActive !== null && hoverActive !== s.bucket
               const isSel = selectedBucket === s.bucket
               return (
                 <button key={s.bucket}
-                  onClick={() => onSelectBucket(s.bucket)}
+                  onClick={() => handleSelect(s.bucket)}
                   onMouseEnter={() => setHover(s.bucket)}
                   onMouseLeave={() => setHover(null)}
                   className={cn(
                     'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all duration-200',
-                    isDim ? 'opacity-35' : 'opacity-100',
+                    // Softer recede — muted rows stay legible.
+                    isDim ? 'opacity-50' : 'opacity-100',
                     isSel ? 'bg-panel ring-1 ring-inset' : 'hover:bg-panel',
                   )}
                   style={isSel ? { boxShadow: `inset 0 0 0 1px ${color}` } : undefined}>
@@ -218,34 +248,25 @@ function donutTitle(view: DonutView, focus: Focus): string {
 }
 
 // ── Arc geometry ────────────────────────────────────────────────────
-// A slice is either a real arc (a filled path) or — when there's only ONE
-// non-zero bucket — a complete ring. A full ring can't be expressed as an
-// arc (start angle === end angle), and building it from two counter-wound
-// circle paths is fragile, so we draw it as a STROKED CIRCLE instead:
-// radius = the mid-line of the band, stroke-width = the band thickness.
 interface Arc {
   bucket: string
-  path?:  string       // filled arc path
-  ring?:  boolean      // true → render as a stroked circle
+  path?:  string
+  ring?:  boolean
 }
 
-const MID_R  = (R_OUT + R_IN) / 2   // centre-line of the donut band
-const BAND_W = R_OUT - R_IN         // band thickness
+const MID_R  = (R_OUT + R_IN) / 2
+const BAND_W = R_OUT - R_IN
 
 function buildArcs(slices: DonutSlice[], total: number): Arc[] {
   if (total <= 0) return []
 
-  // Single non-zero bucket → a complete ring.
   if (slices.length === 1) {
     return [{ bucket: slices[0].bucket, ring: true }]
   }
 
-  let angle = -Math.PI / 2   // start at 12 o'clock
+  let angle = -Math.PI / 2
   return slices.map(s => {
     const sweep = (s.amount / total) * Math.PI * 2
-
-    // Never let the padding gap eat the whole slice — a tiny slice keeps a
-    // proportionally smaller gap so it stays visible.
     const gap = Math.min(GAP, sweep * 0.35)
     const a0  = angle + gap / 2
     const a1  = angle + sweep - gap / 2
@@ -263,10 +284,10 @@ function arcPath(a0: number, a1: number): string {
   const [x1i, y1i] = p(R_IN,  a1)
   const [x0i, y0i] = p(R_IN,  a0)
   return [
-    `M ${x0o} ${y0o}`,                                    // outer start
-    `A ${R_OUT} ${R_OUT} 0 ${large} 1 ${x1o} ${y1o}`,     // outer arc, CW
-    `L ${x1i} ${y1i}`,                                    // step in
-    `A ${R_IN} ${R_IN} 0 ${large} 0 ${x0i} ${y0i}`,       // inner arc, CCW
+    `M ${x0o} ${y0o}`,
+    `A ${R_OUT} ${R_OUT} 0 ${large} 1 ${x1o} ${y1o}`,
+    `L ${x1i} ${y1i}`,
+    `A ${R_IN} ${R_IN} 0 ${large} 0 ${x0i} ${y0i}`,
     'Z',
   ].join(' ')
 }

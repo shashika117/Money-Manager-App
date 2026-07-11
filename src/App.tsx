@@ -52,7 +52,7 @@ export default function App() {
               }
             >
               {/* Default: redirect / to /transactions */}
-              <Route index element={<Navigate to="/transactions" replace />} />
+              <Route index element={<Navigate to="/home" replace />} />
 
               <Route path="home" element={
                 <Suspense fallback={<PageLoader />}><HomePage /></Suspense>
@@ -80,7 +80,7 @@ export default function App() {
               } />
 
               {/* Catch-all: unknown paths redirect to transactions */}
-              <Route path="*" element={<Navigate to="/transactions" replace />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
             </Route>
 
           </Routes>

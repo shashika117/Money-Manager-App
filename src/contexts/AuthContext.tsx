@@ -35,7 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Fetch the profile row for a given user ID
+  // Tracks which user ID we already have a profile loaded for.
+  // Prevents re-fetching on every token refresh or tab focus event.
+  const loadedProfileForId = useRef<string | null>(null)
+
+  // Fetch the profile row for a given user ID.
+  // IMPORTANT: this must NEVER be awaited from inside the
+  // onAuthStateChange callback — see the note below.
   async function fetchProfile(userId: string): Promise<void> {
     const { data, error } = await supabase
       .from('profiles')
@@ -50,38 +56,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(data as UserProfile)
   }
 
-  
-// Tracks which user ID we already have a profile loaded for.
-  // Prevents re-fetching on every token refresh or tab focus event.
-  const loadedProfileForId = useRef<string | null>(null)
-
   useEffect(() => {
-    // onAuthStateChange fires INITIAL_SESSION immediately on mount,
-    // so getSession() + fetchProfile is not needed separately.
+    // ════════════════════════════════════════════════════════════════
+    // CRITICAL — DO NOT make this callback `async`, and DO NOT `await`
+    // any Supabase call inside it.
+    //
+    // onAuthStateChange runs SYNCHRONOUSLY while the auth library holds
+    // its internal lock. Awaiting another Supabase call (e.g. a query on
+    // `profiles`) from inside deadlocks the client: the lock is never
+    // released, the next Supabase call hangs forever, and `loading` is
+    // never cleared — the app sits on the loading screen until a manual
+    // browser reload. This is a known supabase-js bug (auth-js #762) and
+    // was the cause of the "must hit Reload to sign in" behaviour.
+    //
+    // The fix (per Supabase's own guidance): keep the callback sync, and
+    // defer any Supabase work to a setTimeout(..., 0) so it runs AFTER
+    // the callback returns and the lock has been released.
+    // ════════════════════════════════════════════════════════════════
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
+      (_event, nextSession) => {
+        setSession(nextSession)
+        setUser(nextSession?.user ?? null)
 
-        if (session?.user) {
-          // Only fetch profile if we haven't loaded it for this user yet
-          if (loadedProfileForId.current !== session.user.id) {
-            loadedProfileForId.current = session.user.id
-            await fetchProfile(session.user.id)
+        if (nextSession?.user) {
+          const uid = nextSession.user.id
+
+          // Only fetch the profile once per user.
+          if (loadedProfileForId.current !== uid) {
+            loadedProfileForId.current = uid
+            // Deferred — runs after the callback completes (no deadlock).
+            setTimeout(() => { void fetchProfile(uid) }, 0)
           }
         } else {
-          // User signed out — reset everything
+          // Signed out — reset everything.
           loadedProfileForId.current = null
           setProfile(null)
         }
 
+        // Resolve the app shell immediately. The profile streams in a
+        // moment later; the UI already handles `profile == null`.
         setLoading(false)
       }
     )
 
     return () => subscription.unsubscribe()
   }, [])
-
 
   // ── Auth actions ────────────────────────────────────────────────
   async function signIn(email: string, password: string): Promise<void> {

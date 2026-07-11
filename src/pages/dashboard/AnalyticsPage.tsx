@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
   // Merging these was the old bug: five taps meant five back presses.
   const [tab, setTab]             = useState<AnalyticsTab>('spend')
   const [months, setMonths]       = useState<string[]>([currentYM()])
-  const [hierarchy, setHierarchy] = useState<Hierarchy>('group')
+  const [hierarchy, setHierarchy] = useState<Hierarchy>('category')
   const [drillStack, setStack]    = useState<Focus[]>([{ kind: 'total' }])
   const [selection, setSelection] = useState<Focus | null>(null)
   const [colMonth, setColMonth]   = useState<string | null>(null)

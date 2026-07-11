@@ -75,8 +75,22 @@ export function donutTotal(slices: DonutSlice[]): number {
 // ── Column chart: top-N buckets by RANGE total (+ Other), per month ──
 // Returns recharts-ready rows: [{ month, [bucket]: value, ... }].
 export interface ColumnData {
-  buckets: string[]                                   // ordered; may include 'Other'
-  data:    Record<string, number | string>[]         // one row per month
+  buckets:   string[]                              // ordered; may include the spill bucket
+  data:      Record<string, number | string>[]     // one row per month
+  otherKey:  string | null                         // the spill bucket's label, if any
+}
+
+// The spill bucket is normally called "Other" — but a REAL category can
+// also be named "Other" (transfer fees map to it). If that real category
+// is among the kept buckets, a second literal 'Other' would collide:
+// duplicate legend rows and duplicate React keys. Fall back to a label
+// that can't clash.
+function pickOtherLabel(taken: Set<string>): string {
+  if (!taken.has('Other')) return 'Other'
+  let label = 'Other (rest)'
+  let n = 2
+  while (taken.has(label)) label = `Other (rest ${n++})`
+  return label
 }
 
 export function toColumns(rows: BreakdownRow[], monthKeys: string[], topN = 6): ColumnData {
@@ -92,12 +106,14 @@ export function toColumns(rows: BreakdownRow[], monthKeys: string[], topN = 6): 
   const keep     = ranked.slice(0, topN).map(([b]) => b)
   const keepSet  = new Set(keep)
   const hasOther = ranked.length > topN
-  const buckets  = hasOther ? [...keep, 'Other'] : keep
+  const otherKey = hasOther ? pickOtherLabel(keepSet) : null
+  const buckets  = otherKey ? [...keep, otherKey] : keep
 
-  // Fold each month's rows into kept buckets (spill → Other).
+  // Fold each month's rows into kept buckets (spill → the Other bucket).
   const cell = new Map<string, number>()   // key = `${month}|${bucket}`
   for (const r of rows) {
-    const b = keepSet.has(r.bucket) ? r.bucket : 'Other'
+    const b = keepSet.has(r.bucket) ? r.bucket : otherKey
+    if (!b) continue                        // no spill bucket → nothing to fold into
     const k = `${r.month}|${b}`
     cell.set(k, (cell.get(k) ?? 0) + r.amount)
   }
@@ -108,5 +124,5 @@ export function toColumns(rows: BreakdownRow[], monthKeys: string[], topN = 6): 
     return row
   })
 
-  return { buckets, data }
+  return { buckets, data, otherKey }
 }

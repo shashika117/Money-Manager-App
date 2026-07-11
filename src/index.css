@@ -197,3 +197,27 @@ select:has(option[value=""]:checked) {
     padding-bottom: 16px;
   }
 }
+
+
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus,
+.recharts-surface:focus-visible,
+.recharts-wrapper *:focus,
+.recharts-wrapper *:focus-visible,
+.recharts-layer:focus,
+.recharts-layer:focus-visible,
+.recharts-bar-rectangle:focus,
+.recharts-rectangle:focus,
+.recharts-sector:focus,
+.recharts-dot:focus,
+.recharts-active-dot:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+ 
+/* Some browsers still paint a ring via the SVG focus pseudo-class. */
+.recharts-wrapper svg:focus,
+.recharts-wrapper svg *:focus {
+  outline: none !important;
+}
