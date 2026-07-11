@@ -20,6 +20,7 @@ import {
   ResponsiveContainer, ComposedChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceDot, Cell,
 } from 'recharts'
+import { cn } from '@/lib/utils'
 import { fmtAmt, fmtCompact } from '@/lib/analyticsFormat'
 import { bucketColor, muted } from '@/lib/analyticsColors'
 import {
@@ -41,8 +42,7 @@ interface Props {
   scope:        string
   scopeKeyName: string | null
   colMonth:     string | null
-  onSelectBucket: (bucket: string) => void
-  onToggleMonth:  (m: string) => void
+  onToggleMonth: (m: string) => void
 }
 
 export function MasterChart(props: Props) {
@@ -174,7 +174,7 @@ function AreaTip({ active, payload, label }: any) {
 // COLUMN — month range
 // ════════════════════════════════════════════════════════════════════
 function ColumnView({
-  tab, months, bounds, view, focus, colMonth, onSelectBucket, onToggleMonth,
+  tab, months, bounds, view, focus, colMonth, onToggleMonth,
 }: Props) {
   const { data: rows = [], isLoading, isError } = useAnalyticsBreakdown({
     tab, start: bounds.start, endExclusive: bounds.endExclusive, view,
@@ -186,11 +186,21 @@ function ColumnView({
   )
   const { buckets, data } = useMemo(() => toColumns(rows, monthKeys, 6), [rows, monthKeys])
 
+  // Clicking a bar does the SAME thing as clicking its month label: isolate
+  // that month (drilling from a bar was too easy to trigger by accident —
+  // drilling now lives solely in the donut's legend).
+  const isolateAt = (index: number) => {
+    const m = data[index]?.month
+    if (typeof m === 'string') onToggleMonth(m)
+  }
+
   return (
     <>
       <Header
         title={`${focusLabel(focus)} · by month`}
-        subtitle={colMonth ? `Isolating ${monthShort(colMonth)} — tap the label again to clear` : 'Tap a bar to drill down · tap a month label to isolate it'}
+        subtitle={colMonth
+          ? `Isolating ${monthShort(colMonth)} — tap it again to clear`
+          : 'Tap a month (bar or label) to isolate it · drill down from the donut legend'}
         legend={
           <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
             {buckets.map(b => (
@@ -230,8 +240,8 @@ function ColumnView({
               return (
                 <Bar key={b} dataKey={b} radius={[3, 3, 0, 0]}
                   isAnimationActive animationDuration={600}
-                  onClick={() => b !== 'Other' && onSelectBucket(b)}
-                  cursor={b === 'Other' ? 'default' : 'pointer'}>
+                  onClick={(_: any, index: number) => isolateAt(index)}
+                  cursor="pointer">
                   {data.map((row, i) => {
                     const dim = colMonth != null && row.month !== colMonth
                     return <Cell key={i} fill={dim ? muted(base, 0.25) : base} />

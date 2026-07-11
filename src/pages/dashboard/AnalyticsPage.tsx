@@ -48,20 +48,42 @@ export default function AnalyticsPage() {
   const isLaptop = useIsLaptop()
 
   // ── Shared state ──────────────────────────────────────────────────
+  // Two DISTINCT concepts, deliberately kept apart:
+  //
+  //   drillStack — the donut's navigation path. Only NON-terminal clicks
+  //                push here (Needs → Food → …). The donut renders the
+  //                children of whatever is on top.
+  //   selection  — a TERMINAL pick (Save, a subcategory, an income
+  //                category). It re-scopes the area chart + history table
+  //                but does NOT move the donut. It's a single slot, so
+  //                clicking "Meal" five times just replaces it five times
+  //                — and ONE back-arrow press clears it.
+  //
+  // Merging these was the old bug: five taps meant five back presses.
   const [tab, setTab]             = useState<AnalyticsTab>('spend')
   const [months, setMonths]       = useState<string[]>([currentYM()])
   const [hierarchy, setHierarchy] = useState<Hierarchy>('group')
-  const [focusStack, setStack]    = useState<Focus[]>([{ kind: 'total' }])
+  const [drillStack, setStack]    = useState<Focus[]>([{ kind: 'total' }])
+  const [selection, setSelection] = useState<Focus | null>(null)
   const [colMonth, setColMonth]   = useState<string | null>(null)
 
-  const focus     = focusStack[focusStack.length - 1]
+  // Drill/back slide animation (uses the existing slideFromLeft/Right keyframes).
+  const [anim, setAnim] = useState<{ key: number; dir: 'down' | 'back' }>({ key: 0, dir: 'down' })
+
+  const drillFocus = drillStack[drillStack.length - 1]   // what the DONUT shows
+  const focus      = selection ?? drillFocus             // what the CHART + TABLE scope to
+
   const isRange   = months.length > 1
   const bounds    = useMemo(() => periodBounds(months), [months])
-  const view      = useMemo(() => donutView(tab, hierarchy, focus), [tab, hierarchy, focus])
+  const view      = useMemo(() => donutView(tab, hierarchy, drillFocus), [tab, hierarchy, drillFocus])
   const scopeKey  = useMemo(() => resolveScope(tab, hierarchy, focus), [tab, hierarchy, focus])
 
   // Changing tab / hierarchy / period invalidates the drill path.
-  function resetDrill() { setStack([{ kind: 'total' }]) }
+  function resetDrill() {
+    setStack([{ kind: 'total' }])
+    setSelection(null)
+    setAnim(a => ({ key: a.key + 1, dir: 'back' }))
+  }
 
   function switchTab(t: AnalyticsTab) {
     if (t === tab) return
@@ -75,25 +97,39 @@ export default function AnalyticsPage() {
     setMonths(m); resetDrill(); setColMonth(null)
   }
 
-  // Donut / column bucket click → drill (or just select, if terminal).
+  // Legend-row click (slices are no longer clickable).
   function selectBucket(bucket: string) {
     const next = focusOnClick(tab, view, bucket)
+
     if (isTerminalClick(view, bucket)) {
-      // Terminal: replace the top of the stack so the charts/table
-      // re-scope, but the donut stays on the same level.
-      setStack(s => {
-        const base = s[s.length - 1].kind === 'subcategory' ? s.slice(0, -1) : s
-        return [...base, next]
-      })
+      // Terminal: re-scope only. The donut stays put; repeat clicks just
+      // overwrite this one slot, so back is always a single press.
+      setSelection(next)
       return
     }
+
+    // Real drill: descend one level.
+    setSelection(null)
     setStack(s => [...s, next])
-  }
-  function drillBack() {
-    setStack(s => (s.length > 1 ? s.slice(0, -1) : s))
+    setAnim(a => ({ key: a.key + 1, dir: 'down' }))
   }
 
-  // A column-chart month label isolates that month (click again = clear).
+  function drillBack() {
+    // A terminal selection is the top-most "layer" — clear it first.
+    if (selection) {
+      setSelection(null)
+      setAnim(a => ({ key: a.key + 1, dir: 'back' }))
+      return
+    }
+    if (drillStack.length > 1) {
+      setStack(s => s.slice(0, -1))
+      setAnim(a => ({ key: a.key + 1, dir: 'back' }))
+    }
+  }
+
+  const canDrillBack = drillStack.length > 1 || selection !== null
+
+  // A column-chart month label (or bar) isolates that month; click again = clear.
   function toggleColMonth(m: string) {
     setColMonth(prev => (prev === m ? null : m))
   }
@@ -147,7 +183,6 @@ export default function AnalyticsPage() {
               scope={scopeKey.scope}
               scopeKeyName={scopeKey.key}
               colMonth={colMonth}
-              onSelectBucket={selectBucket}
               onToggleMonth={toggleColMonth}
             />
           )}
@@ -159,9 +194,12 @@ export default function AnalyticsPage() {
                 tab={tab}
                 bounds={bounds}
                 view={view}
-                focus={focus}
+                focus={drillFocus}
+                selection={selection}
                 activeMonth={activeMonth}
-                canDrillBack={focusStack.length > 1}
+                canDrillBack={canDrillBack}
+                animKey={anim.key}
+                animDir={anim.dir}
                 onSelectBucket={selectBucket}
                 onDrillBack={drillBack}
               />
