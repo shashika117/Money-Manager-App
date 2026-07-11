@@ -79,7 +79,16 @@ export function HomeCard({
               'hover:bg-panel hover:text-white touch-manipulation',
               ICON_VIS,
             )}>
-            <span className="font-sora text-xs leading-none">🡵</span>
+
+              {/* Redirect arrow */}
+              <>
+               {/* Smartphone Screen (Visible by default, hidden on laptops) */}
+               <span className="font-sora text-xs leading-none lg:hidden">↗</span>
+
+                {/* Laptop Screen (Hidden by default, visible on large screens) */}
+                <span className="font-sora leading-none hidden lg:inline-block">🡵</span>
+              </>
+
           </button>
         </div>
       </div>
