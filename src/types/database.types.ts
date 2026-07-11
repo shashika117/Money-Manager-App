@@ -393,6 +393,24 @@ export type Database = {
           },
         ]
       }
+      home_prefs: {
+        Row: {
+          id: number
+          prefs: Json
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          prefs?: Json
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          prefs?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_color: string
@@ -649,6 +667,34 @@ export type Database = {
         Returns: Json
       }
       delete_transfer: { Args: { p_transfer_group_id: string }; Returns: Json }
+      get_analytics_breakdown: {
+        Args: {
+          p_dimension: string
+          p_end: string
+          p_filter_category?: string
+          p_filter_group?: string
+          p_start: string
+          p_tab: string
+        }
+        Returns: {
+          amount: number
+          bucket: string
+          month: string
+        }[]
+      }
+      get_analytics_daily: {
+        Args: {
+          p_end: string
+          p_key?: string
+          p_scope: string
+          p_start: string
+          p_tab: string
+        }
+        Returns: {
+          amount: number
+          d: string
+        }[]
+      }
       get_budget_rollover: {
         Args: { p_selected_month: string }
         Returns: {
@@ -731,6 +777,7 @@ export type Database = {
       }
       get_total_left_to_save: { Args: never; Returns: number }
       recalculate_account_balances: { Args: never; Returns: string }
+      set_home_pref: { Args: { p_key: string; p_value: Json }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       update_goal_transfer: {

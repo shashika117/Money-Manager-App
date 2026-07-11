@@ -335,9 +335,9 @@ function handleOpenPicker() {
             onSelectMonth={handleSelectMonth} isLoading={cfLoading} className="h-full" />
         </div>
         <div className="flex-1 flex flex-col gap-2.5 justify-center">
-          <SummaryCard label="Income"    amount={income}        isPositive />
-          <SummaryCard label="Expenses"  amount={expense}       isPositive={false} />
-          <SummaryCard label="Net Total" amount={Math.abs(net)} isPositive={net >= 0} />
+          <SummaryCard label="Inflow"    amount={income}        isPositive />
+          <SummaryCard label="Outflow"  amount={expense}       isPositive={false} />
+          <SummaryCard label="Netflow" amount={Math.abs(net)} isPositive={net >= 0} />
         </div>
       </div>
 
@@ -402,9 +402,9 @@ function handleOpenPicker() {
 
       {/* ── MOBILE SUMMARY CARDS (hidden on lg) ── */}
       <div className="lg:hidden grid grid-cols-3 gap-2 px-4 py-2.5 border-b border-line bg-navy/30 flex-none">
-        <SummaryCard label="Income"    amount={income}        isPositive compact />
-        <SummaryCard label="Expenses"  amount={expense}       isPositive={false} compact />
-        <SummaryCard label="Net Total" amount={Math.abs(net)} isPositive={net >= 0} compact />
+        <SummaryCard label="Inflow"    amount={income}        isPositive compact />
+        <SummaryCard label="Outflow"  amount={expense}       isPositive={false} compact />
+        <SummaryCard label="Netflow" amount={Math.abs(net)} isPositive={net >= 0} compact />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════

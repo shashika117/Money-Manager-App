@@ -12,16 +12,6 @@ interface CashflowChartProps {
   className?:    string
 }
 
-// ── Helpers ────────────────────────────────────────────────────────
-/*
-function fmtK(n: number): string {
-  const a = Math.abs(n)
-  if (a >= 1_000_000) return `${(a / 1_000_000).toFixed(1)}M`
-  if (a >= 10_000)    return `${Math.round(a / 1_000)}K`
-  if (a >= 1_000)     return `${(a / 1_000).toFixed(1)}K`
-  return a.toLocaleString('en-US', { maximumFractionDigits: 0 })
-}
-*/
 
 // ── CashflowChart ──────────────────────────────────────────────────
 export function CashflowChart({
@@ -104,15 +94,15 @@ export function CashflowChart({
         <span className="font-dm text-[10px] text-muted uppercase tracking-wide">Cashflow</span>
         <div className="flex items-center gap-1.5 ml-auto">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-green/70" />
-          <span className="font-dm text-[10px] text-soft">Income</span>
+          <span className="font-dm text-[10px] text-soft">Inflow</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red/70" />
-          <span className="font-dm text-[10px] text-soft">Expense</span>
+          <span className="font-dm text-[10px] text-soft">Outflow</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4 bg-amber rounded-full" />
-          <span className="font-dm text-[10px] text-soft">Net</span>
+          <span className="font-dm text-[10px] text-soft">Netflow</span>
         </div>
       </div>
 

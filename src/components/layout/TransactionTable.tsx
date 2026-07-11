@@ -14,20 +14,32 @@ const AMT_COLOR: Record<Transaction['amount_color'], string> = {
   gray:  'text-soft',
 }
 
+// ── Row accent ─────────────────────────────────────────────────────
+// OPTIONAL. When supplied (Analytics page), a row gets:
+//   • a left→right gradient wash in the accent colour
+//   • its Amount cell recoloured to the accent
+// When omitted (Transactions page, Calendar day overlay, Budget drill-
+// downs), rows render exactly as before — nothing changes.
+export type RowAccentFn = (txn: Transaction) => string | null   // hex, or null
+
+// Append an alpha byte to a #rrggbb colour.
+function alpha(hex: string, a: number): string {
+  const byte = Math.round(Math.max(0, Math.min(1, a)) * 255)
+    .toString(16).padStart(2, '0')
+  return `${hex}${byte}`
+}
+
 // ── Date group header ──────────────────────────────────────────────
 interface DateGroupHeaderProps {
   group: DateGroup
-  onDateGroupSelect?: (date: string) => void   // NEW
+  onDateGroupSelect?: (date: string) => void
 }
 
-
-// Update DateGroupHeader function:
 function DateGroupHeader({ group, onDateGroupSelect }: DateGroupHeaderProps) {
   return (
     <div
       className={cn(
         'flex items-center justify-between px-4 py-2 sticky top-0 bg-navy z-10',
-        // Only show interactive styles when callback is provided
         onDateGroupSelect && [
           'cursor-pointer touch-manipulation',
           'transition-colors hover:bg-navy',
@@ -46,14 +58,6 @@ function DateGroupHeader({ group, onDateGroupSelect }: DateGroupHeaderProps) {
         <span className="font-dm text-xs text-muted leading-none">
           {group.month_year}
         </span>
-        
-        {/* 
-        Small "+" signals this row is tappable to add a transaction 
-        {onDateGroupSelect && (
-          <span className="ml-1 font-sora text-xs text-line">+</span>
-        )}  
-        */}
-
       </div>
       <div className="flex items-center gap-2 mr-3">
         {group.total_income > 0 && (
@@ -73,22 +77,31 @@ function DateGroupHeader({ group, onDateGroupSelect }: DateGroupHeaderProps) {
 
 // ── Single transaction row ─────────────────────────────────────────
 interface TransactionRowProps {
-  txn:    Transaction
-  onTap:  (txn: Transaction) => void
-  isLast: boolean
+  txn:     Transaction
+  onTap:   (txn: Transaction) => void
+  isLast:  boolean
+  accent?: string | null      // hex colour, or null/undefined for default
 }
-function TransactionRow({ txn, onTap, isLast }: TransactionRowProps) {
+
+function TransactionRow({ txn, onTap, isLast, accent }: TransactionRowProps) {
+  // Minimal left→right gradient wash. Subtle by design: it should read as a
+  // tint on the row, never as a coloured block competing with the text.
+  const accentStyle = accent
+    ? { background: `linear-gradient(90deg, ${alpha(accent, 0.16)} 0%, ${alpha(accent, 0.05)} 45%, transparent 85%)` }
+    : undefined
+
   return (
     <button
       type="button"
       onClick={() => onTap(txn)}
+      style={accentStyle}
       className={cn(
         'w-full flex items-start gap-x-2 px-4 py-3 text-left',
         'transition-colors active:bg-panel',
         !isLast && 'border-b border-line/50',
       )}
     >
-      {/* ── LEFT column: Fixed width (41.6%) anchors the middle column ── */}
+      {/* ── LEFT column ── */}
       <div className="w-5/12 flex-none flex flex-col gap-y-0.5">
         <p className={cn(
           'font-sora text-sm font-semibold leading-snug truncate',
@@ -105,7 +118,7 @@ function TransactionRow({ txn, onTap, isLast }: TransactionRowProps) {
         )}
       </div>
 
-      {/* ── MIDDLE column: flex-1 takes the remaining space ── */}
+      {/* ── MIDDLE column ── */}
       <div className="min-w-0 flex-1 flex flex-col gap-y-0.5">
         <p className="font-dm text-sm text-white leading-snug truncate">
           {txn.master_account}
@@ -117,12 +130,15 @@ function TransactionRow({ txn, onTap, isLast }: TransactionRowProps) {
         )}
       </div>
 
-      {/* ── RIGHT: Amount ── */}
+      {/* ── RIGHT: Amount — accent colour wins when provided ── */}
       <div className="flex-none pl-2 self-center text-right">
-        <p className={cn(
-          'font-sora text-sm font-normal tabular-nums whitespace-nowrap',
-          AMT_COLOR[txn.amount_color],
-        )}>
+        <p
+          className={cn(
+            'font-sora text-sm font-normal tabular-nums whitespace-nowrap',
+            !accent && AMT_COLOR[txn.amount_color],
+          )}
+          style={accent ? { color: accent } : undefined}
+        >
           {fmtAmt(txn.singed_amount)}
         </p>
       </div>
@@ -136,8 +152,10 @@ interface TransactionTableProps {
   onSelectTransaction: (txn: Transaction) => void
   isLoading:           boolean
   isError:             boolean
-  avatarColor?:        string   // optional — currently unused (using text-soft for day name)
-  onDateGroupSelect?: (date: string) => void  // Add to TransactionTableProps interface:
+  avatarColor?:        string
+  onDateGroupSelect?:  (date: string) => void
+  /** OPTIONAL — per-row accent colour (Analytics group tinting). */
+  rowAccent?:          RowAccentFn
 }
 
 export function TransactionTable({
@@ -145,7 +163,8 @@ export function TransactionTable({
   onSelectTransaction,
   isLoading,
   isError,
-  onDateGroupSelect,      // ← add this
+  onDateGroupSelect,
+  rowAccent,
 }: TransactionTableProps) {
 
   if (isLoading) {
@@ -196,6 +215,7 @@ export function TransactionTable({
                 txn={txn}
                 onTap={onSelectTransaction}
                 isLast={i === group.transactions.length - 1}
+                accent={rowAccent?.(txn) ?? null}
               />
             ))}
           </div>
