@@ -253,8 +253,16 @@ export function useTransactions(
   const search       = noteSearch?.trim() ?? ''
   const isSearchMode  = search.length >= 3
 
+  // 1. Manually construct the start date
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-  const endDate   = new Date(year, month, 0).toISOString().slice(0, 10)
+  
+  // 2. Get the last day of the month using local time, avoiding UTC shifts
+  const lastDay = new Date(year, month, 0).getDate()
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  
+//  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+//  const endDate   = new Date(year, month, 0).toISOString().slice(0, 10)
+
 
   return useQuery<DateGroup[]>({
     queryKey: isSearchMode

@@ -109,8 +109,20 @@ export function useAreaChartData(params: {
       // average over prior months that actually have day d
       let sum = 0, count = 0
       for (const cum of priorCum) {
-        if (d < cum.length) { sum += cum[d]; count++ }
+
+      // 📍 THE FIX: If the day exists in this month, use it. 
+        // If not, use the cumulative total from the LAST day of that month.
+        if (d < cum.length) { 
+          sum += cum[d]
+          count++ 
+        } else if (cum.length > 0) { 
+          // Month is shorter than 'd' (e.g., April has 30 days, we are on day 31).
+          // Fallback to the cumulative total of the last valid day of that month.
+          sum += cum[cum.length - 1]
+          count++
+        }
       }
+      
       const average = count > 0 ? sum / count : null
 
       let current: number | null = selCum[d] ?? 0
