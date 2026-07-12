@@ -126,7 +126,7 @@ export function GoalCardsSection({ goals, isLaptop, onOpenSettings }: Props) {
       {/* Floating copy of the dragged card — the "lifted" visual feel */}
       <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.18,0.67,0.6,1.22)' }}>
         {activeGoal ? (
-          <div className="rotate-1 shadow-2xl shadow-black/40">
+          <div className="shadow-2xl shadow-black/40">
             <GoalCard
               goal={activeGoal}
               chartOpen={false}

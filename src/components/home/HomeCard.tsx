@@ -20,7 +20,7 @@ const ICON_VIS = 'opacity-50 md:opacity-0 md:group-hover:opacity-100 transition-
 
 interface HomeCardProps {
   title:      string
-  subtitle?:  string
+  subtitle?:  ReactNode
   to:         string                       // redirect route for the 🡵 icon
   children:   ReactNode
   className?: string
@@ -63,7 +63,7 @@ export function HomeCard({
               <span className="font-sora text-xs leading-none">
 
               {/*Drop down arrow = ⌄*/}
-              <svg xmlns="http://w3.org" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg xmlns="http://w3.org" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
 

@@ -106,6 +106,11 @@ export default function HomePage() {
             <CalendarCard monthTitle={monthTitle} />
           </div>
         )}
+      
+        {/* ── 📍 The enough space for FAB to place bottom of the screen without covering anything ── */}
+          {/* Changed md:h-6 to md:h-24 so it rolls past the bottom gap AND the physical height of the laptop FAB button */}
+          <div className="h-2 md:h-18 flex-none" />
+
       </div>
 
       {/* ── FAB + SHEET ──

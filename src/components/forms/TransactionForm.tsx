@@ -104,8 +104,11 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
     },
   })
 
-  const watchType     = watch('type')
-  const watchCategory = watch('category')
+  const watchType          = watch('type')
+  const watchCategory      = watch('category')
+  const watchSubcategory   = watch('subcategory')
+  const watchGoalName      = watch('goal_name')
+  const watchMasterAccount = watch('master_account')
 
   // When type changes: reset category + subcategory + goal
    useEffect(() => {
@@ -224,14 +227,15 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
             {...register('category')}
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm text-white outline-none transition-colors',
+              'font-dm text-sm outline-none transition-colors',
+              !watchCategory ? 'text-soft' : 'text-white',
               'focus:border-green',
               errors.category ? 'border-red' : 'border-line',
             )}
           >
-            <option value="" disabled>Select category…</option>
+            <option value="" disabled className="text-soft bg-panel">Select category…</option>
             {categoryOptions.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
+              <option key={cat} value={cat} className="text-white bg-panel">{cat}</option>
             ))}
           </select>
           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">
@@ -254,14 +258,15 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
               {...register('subcategory')}
               className={cn(
                 'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-                'font-dm text-sm text-white outline-none transition-colors',
+                'font-dm text-sm outline-none transition-colors',
+                !watchSubcategory ? 'text-soft' : 'text-white',
                 'focus:border-green',
                 errors.subcategory ? 'border-red' : 'border-line',
               )}
             >
-              <option value="" disabled>Select sub-category…</option>
+              <option value="" disabled className="text-soft bg-panel">Select sub-category…</option>
               {subcategoryOptions.map(sc => (
-                <option key={sc.id} value={sc.ex_sub_category}>
+                <option key={sc.id} value={sc.ex_sub_category} className="text-white bg-panel">
                   {sc.ex_sub_category}
                 </option>
               ))}
@@ -287,14 +292,15 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
               {...register('goal_name')}
               className={cn(
                 'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-                'font-dm text-sm text-white outline-none transition-colors',
+                'font-dm text-sm outline-none transition-colors',
+                !watchGoalName ? 'text-soft' : 'text-white',
                 'focus:border-amber',
                 errors.goal_name ? 'border-red' : 'border-line',
               )}
             >
-              <option value="" disabled>Which goal are you spending from?</option>
+              <option value="" disabled className="text-soft bg-panel">Which goal are you spending from?</option>
               {goals.map(g => (
-                <option key={g.id} value={g.goal_name}>
+                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
                   {g.goal_name}
                 </option>
               ))}
@@ -323,14 +329,15 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
             {...register('master_account')}
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm text-white outline-none transition-colors',
+              'font-dm text-sm outline-none transition-colors',
+              !watchMasterAccount ? 'text-soft' : 'text-white',
               'focus:border-green',
               errors.master_account ? 'border-red' : 'border-line',
             )}
           >
-            <option value="" disabled>Select account…</option>
+            <option value="" disabled className="text-soft bg-panel">Select account…</option>
             {accounts.map(acc => (
-              <option key={acc.id} value={acc.master_account}>
+              <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
                 {acc.master_account}
               </option>
             ))}

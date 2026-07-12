@@ -67,6 +67,7 @@ export function GoalFormPanel({ goal, onClose }: Props) {
   })
 
   const watchActive = watch('is_active')
+  const watchAccount = watch('linked_account')
 
   function handleClose() {
     setIsClosing(true)
@@ -195,8 +196,19 @@ export function GoalFormPanel({ goal, onClose }: Props) {
           )}
 
           <Field label="Target amount" hint="optional">
-            <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00"
-              {...register('target_amount')} className={inputCls(false)} />
+            <input 
+              type="number" 
+              inputMode="decimal" 
+              step="0.01" 
+              min="0" 
+              placeholder="0.00"
+              {...register('target_amount')} 
+              className={cn(
+                'w-full rounded-xl border bg-panel px-4 py-3',
+                'font-sora text-base text-white outline-none transition-colors focus:border-cyan',
+                errors.target_amount ? 'border-red' : 'border-line',
+              )} 
+            />
           </Field>
 
           <Field label="Target date" hint="optional">
@@ -204,18 +216,37 @@ export function GoalFormPanel({ goal, onClose }: Props) {
           </Field>
 
           <Field label="Budget set" hint="optional — used as the template in the Budget page">
-            <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00"
-              {...register('template_budget')} className={inputCls(false)} />
+            <input 
+              type="number" 
+              inputMode="decimal" 
+              step="0.01" 
+              min="0" 
+              placeholder="0.00"
+              {...register('template_budget')} 
+              className={cn(
+                'w-full rounded-xl border bg-panel px-4 py-3',
+                'font-sora text-base text-white outline-none transition-colors focus:border-cyan',
+                errors.template_budget ? 'border-red' : 'border-line',
+              )} 
+            />
           </Field>
 
           <Field label="Account link" hint="optional — 1 account per goal">
             <div className="relative">
-              <select {...register('linked_account')} className={cn(inputCls(false), 'appearance-none pr-10')}>
-                <option value="">No linked account</option>
+              <select 
+                {...register('linked_account')} 
+                className={cn(
+                  'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
+                  'font-dm text-sm outline-none transition-colors focus:border-cyan',
+                  watchAccount ? 'text-white' : 'text-muted',
+                  errors.linked_account ? 'border-red' : 'border-line',
+                )}
+              >
+                <option value="" className="text-muted bg-panel">No linked account</option>
                 {accounts.map(a => {
                   const takenByOther = linkedElsewhere.has(a.master_account)
                   return (
-                    <option key={a.id} value={a.master_account} disabled={takenByOther}>
+                    <option key={a.id} value={a.master_account} disabled={takenByOther} className={cn(takenByOther ? 'text-muted' : 'text-white', 'bg-panel')}>
                       {a.master_account}{takenByOther ? ' — linked elsewhere' : ''}
                     </option>
                   )

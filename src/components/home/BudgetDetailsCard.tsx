@@ -75,15 +75,18 @@ export function BudgetDetailsCard() {
   return (
     <HomeCard
       title="Budget Details"
-      subtitle={`Remaining to spend · rollover ${rollover ? 'on' : 'off'}`}
+      /* ── 📍 STEP 1: CONVERT SUBTITLE STRING TO JSX AND ADD THE TOGGLE HERE ── */
+      subtitle={
+        <div className="inline-flex items-center gap-1.5">
+          <span>Remaining to spend :</span>
+          <RolloverToggle value={rollover} onChange={setRollover} />
+        </div>
+      }
       to="/budget"
       onOpenPicker={setPickerRect}
     >
       <div className="px-3 pb-3">
-        {/* Rollover toggle */}
-        <div className="flex items-center justify-end pb-2">
-          <RolloverToggle value={rollover} onChange={setRollover} />
-        </div>
+        {/* ── 📍 STEP 2: REMOVED OLD TOGGLE WRAPPER BLOCK FROM HERE ── */}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -136,12 +139,16 @@ export function BudgetDetailsCard() {
           onToggle={toggleSubcat}
           onClose={() => setPickerRect(null)}
           emptyHint={`No rollover-${rollover ? 'on' : 'off'} subcategories.`}
+
+          /* This is drop down isit's check list's Rollover toggle switch
           footer={
             <div className="flex items-center justify-between">
               <span className="font-dm text-[11px] text-soft">Rollover subcategories</span>
               <RolloverToggle value={rollover} onChange={setRollover} />
             </div>
           }
+            */
+        
         />
       )}
     </HomeCard>

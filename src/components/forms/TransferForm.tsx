@@ -151,13 +151,14 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
             {...register('from_account')}
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm text-white outline-none transition-colors focus:border-blue',
+              'font-dm text-sm outline-none transition-colors focus:border-blue',
+              !watchFromAccount ? 'text-soft' : 'text-white',
               errors.from_account ? 'border-red' : 'border-line',
             )}
           >
-            <option value="" disabled>Select source account…</option>
+            <option value="" disabled className="text-soft bg-panel">Select source account…</option>
             {accounts.map(acc => (
-              <option key={acc.id} value={acc.master_account}>
+              <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
                 {acc.master_account}
               </option>
             ))}
@@ -179,15 +180,16 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
             {...register('to_account')}
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm text-white outline-none transition-colors focus:border-blue',
+              'font-dm text-sm outline-none transition-colors focus:border-blue',
+              !watchToAccount ? 'text-soft' : 'text-white',
               errors.to_account ? 'border-red' : 'border-line',
             )}
           >
-            <option value="" disabled>Select destination account…</option>
+            <option value="" disabled className="text-soft bg-panel">Select destination account…</option>
             {accounts
               .filter(acc => acc.master_account !== watchFromAccount)
               .map(acc => (
-                <option key={acc.id} value={acc.master_account}>
+                <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
                   {acc.master_account}
                 </option>
               ))}

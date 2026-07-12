@@ -68,6 +68,7 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
   })
 
   const watchFromAccount = watch('from_account')
+  const watchLoanAccount = watch('loan_account')
   const watchCapital     = watch('capital_amount')
   const watchInterest    = watch('interest_amount')
 
@@ -87,7 +88,14 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
         note:            data.note ?? '',
       })
 
-      reset({ date: todayLocal() })
+      reset({
+        date:            todayLocal(),
+        from_account:    initialAccount ?? '',
+        loan_account:    '',
+        capital_amount:  '',
+        interest_amount: '',
+        note:            '',
+      })
       onSuccess()
     } catch (err) {
       console.error('Loan payment save failed:', err)
@@ -142,16 +150,19 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
             {...register('from_account')}
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm text-white outline-none transition-colors focus:border-amber',
+              'font-dm text-sm outline-none transition-colors focus:border-amber',
+              watchFromAccount ? 'text-white' : 'text-muted', // Dynamic text color alignment
               errors.from_account ? 'border-red' : 'border-line',
             )}
           >
-            <option value="" disabled>Select paying account…</option>
-            {accounts.map(acc => (
-              <option key={acc.id} value={acc.master_account}>
-                {acc.master_account}
-              </option>
-            ))}
+            <option value="" disabled className="text-muted bg-panel">Select paying account…</option>
+            {accounts
+              .filter(acc => acc.master_account !== watchLoanAccount)
+              .map(acc => (
+                <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
+                  {acc.master_account}
+                </option>
+              ))}
           </select>
           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
         </div>
@@ -170,15 +181,16 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
             {...register('loan_account')}
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm text-white outline-none transition-colors focus:border-amber',
+              'font-dm text-sm outline-none transition-colors focus:border-amber',
+              watchLoanAccount ? 'text-white' : 'text-muted', // Dynamic text color alignment
               errors.loan_account ? 'border-red' : 'border-line',
             )}
           >
-            <option value="" disabled>Select loan account…</option>
+            <option value="" disabled className="text-muted bg-panel">Select loan account…</option>
             {accounts
               .filter(acc => acc.master_account !== watchFromAccount)
               .map(acc => (
-                <option key={acc.id} value={acc.master_account}>
+                <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
                   {acc.master_account}
                 </option>
               ))}
@@ -227,9 +239,10 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
           placeholder="0.00"
           {...register('interest_amount')}
           className={cn(
-            'w-full rounded-xl border border-line bg-panel px-4 py-3',
-            'font-dm text-sm text-white placeholder:text-muted',
+            'w-full rounded-xl border bg-panel px-4 py-3',
+            'font-sora text-base text-white placeholder:text-muted',
             'outline-none transition-colors focus:border-amber',
+            errors.interest_amount ? 'border-red' : 'border-line',
           )}
         />
         {errors.interest_amount && (

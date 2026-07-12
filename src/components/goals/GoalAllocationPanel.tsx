@@ -114,7 +114,6 @@ const allocSchema = z.object({
 type AllocForm = z.infer<typeof allocSchema>
 
 function monthInputValue(monthKey?: string): string {
-  // <input type="month"> wants 'YYYY-MM'
   if (monthKey) return monthKey.slice(0, 7)
   return todayLocal().slice(0, 7)
 }
@@ -152,26 +151,23 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
   const { data: budgetMap } = useGoalBudgetForMonth(watchMonth ? monthKey : null)
 
   // Goals selectable for allocation: active AND NOT account-linked
-  // (linked goals get their allocations automatically from transfers).
   const selectableGoals = useMemo(
     () => goals.filter(g => g.is_active && !g.linked_account),
     [goals],
   )
 
   async function doSave(form: AllocForm, force: boolean) {
-    // month input gives 'YYYY-MM' → normalise to first-of-month date
     const date = `${form.month}-01`
     const res = await upsert.mutateAsync({
       date, goal_name: form.goal, amount: parseFloat(form.amount), note: form.note, force,
     })
     if (res.status === 'exists' && !force) {
-      setOverridePrompt(form)   // ask to override
+      setOverridePrompt(form)
       return
     }
-    // success (created / updated)
     setOverridePrompt(null)
     setAddAnother(true)
-    reset({ month: form.month, goal: '', amount: '', note: '' })   // keep month per spec
+    reset({ month: form.month, goal: '', amount: '', note: '' })
   }
 
   async function onSubmit(form: AllocForm) {
@@ -219,18 +215,28 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
 
       <Field label="Goal" error={errors.goal?.message}>
         <div className="relative">
-          <select {...register('goal')} className={cn(inputCls(!!errors.goal), 'appearance-none pr-10')}>
-            <option value="" disabled>Select a goal…</option>
+          <select 
+            {...register('goal')} 
+            className={cn(
+              'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
+              'font-dm text-sm outline-none transition-colors focus:border-cyan',
+              watchGoal ? 'text-white' : 'text-muted',
+              errors.goal ? 'border-red' : 'border-line',
+            )}
+          >
+            <option value="" disabled className="text-muted bg-panel">Select a goal…</option>
             {selectableGoals.map(g => {
-              // Month-specific budget from goal_budget_data (not template_budget).
               const b = budgetMap?.get(g.goal_name)
               const budget = b != null ? `   —   Budget ${fmtAmt(b)}` : ''
-              return <option key={g.id} value={g.goal_name}>{g.goal_name}{budget}</option>
+              return (
+                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
+                  {g.goal_name}{budget}
+                </option>
+              )
             })}
           </select>
           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
         </div>
-        {/* Distinct, prominent budget line for the SELECTED goal (this month) */}
         {(() => {
           const b = watchGoal ? budgetMap?.get(watchGoal) : undefined
           if (b != null) {
@@ -251,8 +257,19 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
       </Field>
 
       <Field label="Amount" error={errors.amount?.message}>
-        <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00"
-          {...register('amount')} className={inputCls(!!errors.amount)} />
+        <input 
+          type="number" 
+          inputMode="decimal" 
+          step="0.01" 
+          min="0" 
+          placeholder="0.00"
+          {...register('amount')} 
+          className={cn(
+            'w-full rounded-xl border bg-panel px-4 py-3',
+            'font-sora text-base text-white outline-none transition-colors focus:border-cyan',
+            errors.amount ? 'border-red' : 'border-line',
+          )} 
+        />
       </Field>
 
       <Field label="Note" hint="optional">
@@ -300,7 +317,6 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
 // Small uneditable 3-column summary of a month's existing allocations
 function MonthAllocationSummary({ month }: { month: string }) {
   const { data: activity = [] } = useGoalActivity()
-  // Month-specific budget per goal (from goal_budget_data), keyed to this month.
   const { data: budgetMap } = useGoalBudgetForMonth(month)
 
   const [y, m] = month.split('-').map(Number)
@@ -311,7 +327,6 @@ function MonthAllocationSummary({ month }: { month: string }) {
       r.kind === 'allocation' &&
       new Date(r.date + 'T00:00:00') >= start &&
       new Date(r.date + 'T00:00:00') <  end)
-    // group by goal
     const byGoal = new Map<string, number>()
     for (const a of allocs) byGoal.set(a.goal, (byGoal.get(a.goal) ?? 0) + a.singed_amount)
     return Array.from(byGoal.entries()).map(([goal, actual]) => {
@@ -401,7 +416,7 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
       })
       onDone()
     } catch (err) {
-      console.error('Goal transfer failed:', err)   // insufficient-balance surfaces below
+      console.error('Goal transfer failed:', err)
     }
   }
 
@@ -413,9 +428,23 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
 
       <Field label="From goal" error={errors.from_goal?.message}>
         <div className="relative">
-          <select {...register('from_goal')} className={cn(inputCls(!!errors.from_goal), 'appearance-none pr-10')}>
-            <option value="" disabled>Move funds from…</option>
-            {activeGoals.map(g => <option key={g.id} value={g.goal_name}>{g.goal_name}</option>)}
+          <select 
+            {...register('from_goal')} 
+            className={cn(
+              'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
+              'font-dm text-sm outline-none transition-colors focus:border-cyan',
+              watchFrom ? 'text-white' : 'text-muted',
+              errors.from_goal ? 'border-red' : 'border-line',
+            )}
+          >
+            <option value="" disabled className="text-muted bg-panel">Move funds from…</option>
+            {activeGoals
+              .filter(g => g.goal_name !== watchTo)
+              .map(g => (
+                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
+                  {g.goal_name}
+                </option>
+              ))}
           </select>
           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
         </div>
@@ -428,18 +457,42 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
 
       <Field label="To goal" error={errors.to_goal?.message}>
         <div className="relative">
-          <select {...register('to_goal')} className={cn(inputCls(!!errors.to_goal), 'appearance-none pr-10')}>
-            <option value="" disabled>Move funds to…</option>
-            {activeGoals.filter(g => g.goal_name !== watchFrom).map(g =>
-              <option key={g.id} value={g.goal_name}>{g.goal_name}</option>)}
+          <select 
+            {...register('to_goal')} 
+            className={cn(
+              'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
+              'font-dm text-sm outline-none transition-colors focus:border-cyan',
+              watchTo ? 'text-white' : 'text-muted',
+              errors.to_goal ? 'border-red' : 'border-line',
+            )}
+          >
+            <option value="" disabled className="text-muted bg-panel">Move funds to…</option>
+            {activeGoals
+              .filter(g => g.goal_name !== watchFrom)
+              .map(g => (
+                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
+                  {g.goal_name}
+                </option>
+              ))}
           </select>
           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
         </div>
       </Field>
 
       <Field label="Amount" error={errors.amount?.message}>
-        <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00"
-          {...register('amount')} className={inputCls(!!errors.amount)} />
+        <input 
+          type="number" 
+          inputMode="decimal" 
+          step="0.01" 
+          min="0" 
+          placeholder="0.00"
+          {...register('amount')} 
+          className={cn(
+            'w-full rounded-xl border bg-panel px-4 py-3',
+            'font-sora text-base text-white outline-none transition-colors focus:border-cyan',
+            errors.amount ? 'border-red' : 'border-line',
+          )} 
+        />
       </Field>
 
       <Field label="Note" hint="optional">

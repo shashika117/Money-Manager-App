@@ -184,7 +184,26 @@ function CategoryBox({
         className="w-full grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center px-3 py-2.5 bg-panel/30 hover:bg-panel/50 transition-colors"
       >
         <span className="flex items-center gap-1.5 text-left min-w-0 truncate">
-          <span className={cn('font-sora text-[10px] text-muted transition-transform', collapsed ? '' : 'rotate-90')}>▶</span>
+          <span className={cn('font-sora text-[10px] text-muted transition-transform', collapsed ? '' : 'rotate-90')}>
+
+        {/* drop down arrow */}
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          width="15" 
+          height="15" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+          className="rotate-270 origin-center"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+
+
+          </span>
           <span className="font-sora text-xs font-bold text-white truncate">{group.label}</span>
         </span>
         <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
