@@ -53,8 +53,8 @@ export default function LoginPage() {
 
           {/* LOGO DESIGN */}
           <svg
-              width={36}
-              height={36}
+              width={48}
+              height={48}
               viewBox="26 28 148 148"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
