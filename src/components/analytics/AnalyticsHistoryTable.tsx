@@ -115,7 +115,7 @@ export function AnalyticsHistoryTable({
 
       {/* Body — the parent table's exact row UI. No onDateGroupSelect → date
           headers render non-interactive, per spec. */}
-      <div className="flex-1 min-h-0 max-h-[560px] overflow-y-auto">
+      <div className="flex-1 min-h-[560px] max-h-[560px] overflow-y-auto">
         <TransactionTable
           groups={groups as unknown as DateGroup[]}
           onSelectTransaction={handleTap}

@@ -14,7 +14,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { fmtAmt, fmtCompact, fmtPct } from '@/lib/analyticsFormat'
+import { fmtAmt, fmtPct } from '@/lib/analyticsFormat'
 import { bucketColor } from '@/lib/analyticsColors'
 import type { AnalyticsTab, DonutView, Focus } from '@/lib/analyticsScope'
 import { focusLabel } from '@/lib/analyticsScope'
@@ -124,8 +124,18 @@ export function AnalyticsDonut({
       ) : (
         <div
           key={animKey}
-          className={animDir === 'down' ? 'animate-slide-from-right' : 'animate-slide-from-left'}
+          className={cn(
+            "transition-all",
+            // Base states using standard tailwind classes or arbitrary animation configurations
+            animDir === 'down' ? 'animate-slide-from-right' : 'animate-slide-from-left'
+          )}
+          style={{
+            // 📍 Force overriding speed (duration) and easing right here
+            animationDuration: '600ms', // Change to make it slower (e.g. 500ms) or faster (e.g. 150ms)
+            animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', // Snappy premium easing curve
+          }}
         >
+
           {/* ── Ring ── */}
           <div ref={wrapRef} className="relative mx-auto" style={{ width: SIZE, height: SIZE }}
             onMouseLeave={() => { setHover(null); setTip(null) }}>
@@ -156,14 +166,32 @@ export function AnalyticsDonut({
               })}
             </svg>
 
+
             {/* Centre total */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="font-dm text-[10px] uppercase tracking-wider text-muted">
+              <span className="font-dm text-[10px] uppercase tracking-wider text-soft">
                 {hovered ? hovered.bucket : 'Total'}
               </span>
-              <span className="font-sora text-xl font-bold text-white tabular-nums mt-0.5">
-                {fmtCompact(hovered ? hovered.amount : total)}
-              </span>
+
+              {/* Render numbers and decimals with different styles */}
+              {(() => {
+                const amountStr = fmtAmt(hovered ? hovered.amount : total)
+                const [integerPart, decimalPart] = amountStr.split('.')
+
+                return (
+                  <div className="font-sora text-white tabular-nums mt-0.5 flex items-baseline justify-center">
+                    {/* Large Integer Part */}
+                    <span className="text-[20px] font-bold">
+                      {integerPart}
+                    </span>
+                    {/* Smaller, cleanly separated Decimal Part */}
+                    <span className="text-[13px] font-medium text-soft ml-0.5">
+                      .{decimalPart}
+                    </span>
+                  </div>
+                )
+              })()}
+
               {hovered && (
                 <span className="font-dm text-[11px] text-soft mt-0.5">
                   {fmtPct(hovered.amount, total)}
@@ -171,31 +199,65 @@ export function AnalyticsDonut({
               )}
             </div>
 
+
             {/* Hover card */}
-            {hovered && tip && (
-              <div className="pointer-events-none absolute z-20 rounded-xl border border-line bg-navy px-3 py-2 shadow-xl animate-fade-in"
-                style={{
-                  left: Math.min(tip.x + 12, SIZE - 130),
-                  top:  Math.max(tip.y - 44, 0),
-                }}>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm flex-none"
-                    style={{ background: bucketColor(view.dimension, hovered.bucket) }} />
-                  <span className="font-sora text-xs font-semibold text-white whitespace-nowrap">
-                    {hovered.bucket}
-                  </span>
+            {hovered && tip && (() => {
+          /*    const GAP_DISTANCE = 10
+              const isRightHalf = tip.x > SIZE / 2
+  
+              // 📍 Check if the user is viewing on a mobile screen (less than 640px wide)
+              const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+
+              const cardStyle: React.CSSProperties = {}
+
+              if (isMobile) {
+                // 📱 SMARTPHONE VIEW: Position the card ABOVE the finger touch point
+                cardStyle.top = tip.y - 74 // Pushed high enough to not be hidden under a thumb/finger
+    
+                // Center it horizontally relative to the touch point, but clamp it between 
+                // 65px and (SIZE - 65px) so the edges of the box never overflow the screen margins.
+                cardStyle.left = Math.max(65, Math.min(tip.x, SIZE - 65))
+                cardStyle.transform = 'translateX(-50%)' // Perfect horizontal centering anchor
+              } else {
+                // 💻 LAPTOP VIEW: Keep your preferred left/right side-floating behavior
+                cardStyle.top = tip.y - 40
+                cardStyle.transform = 'none'
+    
+                if (isRightHalf) {
+                  cardStyle.left = tip.x + GAP_DISTANCE
+                  cardStyle.right = 'auto'
+                } else {
+                  cardStyle.right = (SIZE - tip.x) + GAP_DISTANCE
+                  cardStyle.left = 'auto'
+                }
+              }
+
+              return (
+                <div 
+                  className="pointer-events-none absolute z-20 rounded-xl border border-line bg-navy px-3 py-2 shadow-xl animate-fade-in"
+                  style={cardStyle}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-sm flex-none"
+                      style={{ background: bucketColor(view.dimension, hovered.bucket) }} />
+                    <span className="font-sora text-xs font-semibold text-white whitespace-nowrap">
+                      {hovered.bucket}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 font-sora text-sm font-bold text-white tabular-nums whitespace-nowrap">
+                    {fmtAmt(hovered.amount)}
+                  </p>
+                  <p className="font-dm text-[11px] text-soft">{fmtPct(hovered.amount, total)}</p>
                 </div>
-                <p className="mt-0.5 font-sora text-sm font-bold text-white tabular-nums whitespace-nowrap">
-                  {fmtAmt(hovered.amount)}
-                </p>
-                <p className="font-dm text-[11px] text-soft">{fmtPct(hovered.amount, total)}</p>
-              </div>
-            )}
+              )
+                */
+            })()}
+
           </div>
 
           {/* ── Back Button Row ── */}
           {canDrillBack && (
-            <div className="mt-4 flex justify-flex-start px-2">
+            <div className="mt-4 flex justify-flex-start px-1.5">
               <button onClick={onDrillBack} aria-label="Back"
                 className="h-7 w-7 flex-none flex items-center justify-center rounded-lg border border-line bg-navy font-sora text-sm text-soft hover:text-white hover:border-soft transition-colors">
                 ←
@@ -204,10 +266,14 @@ export function AnalyticsDonut({
           )}
 
           {/* ── Legend — THE drill control (dynamic mt depending on back button) ── */}
-          <div className={cn(
-            "flex flex-col gap-0.5 max-h-[220px] overflow-y-auto",
-            canDrillBack ? "mt-2" : "mt-4"
-          )}>
+          <div 
+            className={cn(
+              "flex flex-col overflow-y-auto", // 📍 FIX 1: Removed 'gap-1' so rows touch seamlessly
+              canDrillBack ? "mt-2" : "mt-4"
+            )}
+            // 📍 FIX 2: Clear hover ONLY when the cursor completely exits the entire legend block
+            onMouseLeave={() => setHover(null)} 
+          >
             {slices.map(s => {
               const color = bucketColor(view.dimension, s.bucket)
               const isDim = hoverActive !== null && hoverActive !== s.bucket
@@ -216,24 +282,29 @@ export function AnalyticsDonut({
                 <button key={s.bucket}
                   onClick={() => handleSelect(s.bucket)}
                   onMouseEnter={() => setHover(s.bucket)}
-                  onMouseLeave={() => setHover(null)}
+                  // 📍 FIX 3: Removed individual row onMouseLeave to prevent intermediate 'null' flashes
                   className={cn(
-                    'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all duration-200',
-                    // Softer recede — muted rows stay legible.
+                    'flex items-center gap-2 rounded-lg px-2 text-left transition-all duration-200',
+                    // 📍 FIX 4: Changed 'py-1.5' to 'py-2'. 
+                    // Since gap-1 (4px) was removed, adding 2px to the top and bottom of each row 
+                    // keeps the text distance exactly the same, but makes the hitboxes gapless.
+                    'py-2', 
                     isDim ? 'opacity-50' : 'opacity-100',
                     isSel ? 'bg-panel ring-1 ring-inset' : 'hover:bg-panel',
                   )}
                   style={isSel ? { boxShadow: `inset 0 0 0 1px ${color}` } : undefined}>
-                  <span className="h-2.5 w-2.5 rounded-sm flex-none" style={{ background: color }} />
-                  <span className="font-dm text-xs text-white truncate flex-1 min-w-0">{s.bucket}</span>
-                  <span className="font-sora text-xs text-soft tabular-nums flex-none">{fmtAmt(s.amount)}</span>
-                  <span className="font-dm text-[10px] text-muted tabular-nums flex-none w-12 text-right">
+                  <span className="h-2 w-2 rounded-sm flex-none" style={{ background: color }} />
+                  <span className="font-dm text-sm text-white truncate flex-1 min-w-0">{s.bucket}</span>
+                  <span className="font-sora text-[13px] text-white tabular-nums flex-none">{fmtAmt(s.amount)}</span>
+                  <span className="font-dm text-[13px] text-soft tabular-nums flex-none w-14 text-right">
                     {fmtPct(s.amount, total)}
                   </span>
                 </button>
               )
             })}
           </div>
+
+
         </div>
       )}
     </div>
