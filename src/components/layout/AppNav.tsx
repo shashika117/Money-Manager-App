@@ -104,7 +104,61 @@ export function AppNav({ variant }: AppNavProps) {
           className="flex items-center gap-2.5 px-5 border-b border-line flex-none"
           style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)', paddingBottom: '20px' }}
         >
-          <span className="text-xl leading-none">💎</span>
+          <span className="text-xl leading-none">
+
+
+        {/* LOGO DESIGN */}
+        <svg
+              width={36}
+              height={36}
+              viewBox="26 28 148 148"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+     
+            >
+              <defs>
+            <linearGradient id="mGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00E5FF" />   <stop offset="100%" stop-color="#FFFFFF" /> </linearGradient>
+            <linearGradient id="glowFilter" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.12" />
+              <stop offset="100%" stop-color="#00E5FF" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+  
+          <path d="M 68 145 Q 100 102 132 145 Z" fill="url(#glowFilter)" />
+
+          <path 
+            d="M58 145 
+               C58 115, 62 85, 76 85 
+               C90 85, 93 118, 100 118 
+               C107 118, 124 60, 140 60 
+               C146 60, 144 105, 144 145" 
+            fill="none" 
+            stroke="#00E5FF" 
+            stroke-width="16" stroke-linecap="round" 
+            stroke-linejoin="round" 
+          />
+
+          <path 
+            d="M58 145 
+               C58 115, 62 85, 76 85 
+               C90 85, 93 118, 100 118 
+               C107 118, 124 60, 140 60 
+               C146 60, 144 105, 144 145" 
+            fill="none" 
+            stroke="url(#mGradient)" 
+            stroke-width="16" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+          />
+        
+          <circle cx="140" cy="60" r="7.5" fill="none" stroke="#00E5FF" stroke-width="3" />
+        
+          <circle cx="140" cy="60" r="7" fill="none" stroke="url(#mGradient)" stroke-width="4" />
+        </svg>
+
+
+          </span>
           <div>
             <p className="font-sora text-sm font-bold text-white leading-none">Money Manager</p>
             <p className="font-dm text-[10px] text-muted leading-none mt-0.5">Family Finance</p>
