@@ -125,18 +125,23 @@ function Section({
 }) {
   return (
     <div className="mb-5">
-      {/* Sticky section header - Responsive Grid Ratios */}
+      {/* Sticky section header - Responsive Grid Ratios with Premium Gradient Anchor Line */}
       <div
-        className="sticky z-30 grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center bg-navy/95 backdrop-blur px-3"
+        className={cn(
+          "sticky z-30 grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center bg-navy/95 backdrop-blur px-3 bg-gradient-to-t to-transparent transition-all",
+          kind === 'income' && 'from-green/30 border-b border-green/30',
+          kind === 'expense' && 'from-red/30 border-b border-red/30',
+          kind === 'saving' && 'from-cyan/30 border-b border-cyan/30'
+        )}
         style={{ top: stickyTop, height: HEADER_H }}
       >
         <span className="font-sora text-sm font-bold uppercase tracking-widest text-soft">
           {title}
         </span>
         <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] text-right pr-1.5">
-          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-1.5">Budget</span>
-          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-1.5">Actual</span>
-          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-muted pr-2.5">Remaining</span>
+          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-1.5">Budget</span>
+          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-1.5">Actual</span>
+          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-2.5">Remaining</span>
         </div>
       </div>
 
@@ -177,11 +182,15 @@ function CategoryBox({
   const outline = 'border-line'
 
   return (
-    <div className={cn('rounded-xl border overflow-hidden', outline)}>
-      {/* Group total row - Responsive Grid Ratios */}
+    <div className={cn('rounded-xl border', outline)}>
+      {/* Group total row - Now Cascading Sticky underneath the Section Header */}
       <button
         onClick={onToggle}
-        className="w-full grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center px-3 py-2.5 bg-panel/30 hover:bg-panel/50 transition-colors"
+        className={cn(
+          "w-full grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center px-3 py-2.5 bg-panel/95 backdrop-blur hover:bg-panel/80 transition-colors sticky z-20 border-b border-line/40",
+          collapsed ? "rounded-xl" : "rounded-t-xl"
+        )}
+        style={{ top: HEADER_H }}
       >
         <span className="flex items-center gap-1.5 text-left min-w-0 truncate">
           <span className={cn('font-sora text-[10px] text-muted transition-transform', collapsed ? '' : 'rotate-90')}>

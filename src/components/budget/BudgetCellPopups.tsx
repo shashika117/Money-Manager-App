@@ -241,9 +241,9 @@ export function BudgetEditPopup({
 // REMAINING POPUP
 // ════════════════════════════════════════════════════════════════
 interface RemainingPopupProps {
-  row:        BudgetRow
+  row:         BudgetRow
   anchorRect: DOMRect
-  onClose:    () => void
+  onClose:     () => void
 }
 export function RemainingPopup({ row, anchorRect, onClose }: RemainingPopupProps) {
   const showRollover = row.rollover_enabled && row.section === 'Expense'
@@ -254,24 +254,37 @@ export function RemainingPopup({ row, anchorRect, onClose }: RemainingPopupProps
         <p className="font-sora text-sm font-bold text-white mb-3">{row.ex_sub_category}</p>
         <div className="space-y-2">
           {showRollover && (
-            <Row label="Rollover from last month" value={row.rollover_amount} muted />
+            <Row 
+              label="Rollover from previous months" 
+              value={row.rollover_amount} 
+              muted={row.rollover_amount >= 0} 
+              showSign 
+            />
           )}
-          <Row label="Budget" value={row.budget} />
+          <Row label="This month's budget" value={row.budget} />
           <Row
             label="Actual"
             value={row.section === 'Income' ? row.actual : -Math.abs(row.actual)}
+            showSign // ➕ Added here too so overspending shows a clean minus sign
           />
           <div className="h-px bg-line my-1" />
-          <Row label="Remaining" value={row.remaining} bold />
+          <Row 
+            label="Remaining" 
+            value={row.remaining} 
+            bold 
+            showSign // ➕ Added here to catch negative remaining balances!
+          />
         </div>
       </div>
     </AnchoredPopup>
   )
 }
 
-function Row({ label, value, bold, muted }: {
-  label: string; value: number; bold?: boolean; muted?: boolean
+function Row({ label, value, bold, muted, showSign }: {
+  label: string; value: number; bold?: boolean; muted?: boolean; showSign?: boolean
 }) {
+  const isNegative = value < 0;
+
   return (
     <div className="flex items-center justify-between">
       <span className={cn('font-dm text-xs', bold ? 'text-white font-bold' : 'text-soft')}>
@@ -280,9 +293,11 @@ function Row({ label, value, bold, muted }: {
       <span className={cn(
         'font-dm text-xs',
         bold ? 'font-bold' : '',
-        muted ? 'text-soft' : value < 0 ? 'text-red' : 'text-white',
+        // 🔴 If not muted and value is negative, fallback to text-red
+        muted ? 'text-soft' : isNegative ? 'text-red' : 'text-white',
       )}>
-        {fmtAmt(value)}
+        {/* 🔄 Force injection of the minus sign if allowed and negative */}
+        {isNegative && showSign ? '-' : ''}{fmtAmt(value)}
       </span>
     </div>
   )

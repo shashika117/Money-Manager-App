@@ -10,27 +10,23 @@ interface ProgressBarProps {
   height?:         number     // px, default 6
 }
 
-/**
- * Horizontal progress bar:
- *  - fill width  = actual / effectiveBudget (clamped 0..100%)
- *  - fill colour = progressColor(ratio, kind)
- *  - today-marker "|" shown only when month === current real month
- *
- * For Savings with a negative actual (net withdrawal), the bar shows
- * empty (0%) and the colour logic treats it as the low end.
- */
 export function ProgressBar({
   actual, effectiveBudget, kind, month, className, height = 6,
 }: ProgressBarProps) {
-  const safeBudget = effectiveBudget === 0 ? 0 : effectiveBudget
-  // ratio: if no budget, treat any actual as "full" so it isn't a dead bar
-  const ratio = safeBudget > 0
-    ? actual / safeBudget
-    : (actual > 0 ? 1 : 0)
+  
+  // 🎯 Calculate the ratio directly—simple, fast, and error-free!
+  let ratio = 0
+  if (effectiveBudget < 0) {
+    ratio = 2 // If overspent from last month's rollover, force a maxed-out state
+  } else if (effectiveBudget === 0) {
+    ratio = actual > 0 ? 1 : 0
+  } else {
+    ratio = actual / effectiveBudget
+  }
 
-  const pct       = Math.max(0, Math.min(1, ratio)) * 100
-  const color     = progressColor(ratio, kind)
-  const marker    = todayMarkerRatio(month)   // 0..1 or null
+  const pct    = Math.max(0, Math.min(1, ratio)) * 100
+  const color  = progressColor(ratio, kind)
+  const marker = todayMarkerRatio(month)
 
   return (
     <div
