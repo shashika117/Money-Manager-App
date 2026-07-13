@@ -114,7 +114,6 @@ export function AppNav({ variant }: AppNavProps) {
               viewBox="26 28 148 148"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-     
             >
               <defs>
             <linearGradient id="mGradient" x1="0%" y1="100%" x2="100%" y2="0%">
@@ -124,9 +123,7 @@ export function AppNav({ variant }: AppNavProps) {
               <stop offset="100%" stop-color="#00E5FF" stop-opacity="0" />
             </linearGradient>
           </defs>
-  
           <path d="M 68 145 Q 100 102 132 145 Z" fill="url(#glowFilter)" />
-
           <path 
             d="M58 145 
                C58 115, 62 85, 76 85 
@@ -138,7 +135,6 @@ export function AppNav({ variant }: AppNavProps) {
             stroke-width="16" stroke-linecap="round" 
             stroke-linejoin="round" 
           />
-
           <path 
             d="M58 145 
                C58 115, 62 85, 76 85 
@@ -151,9 +147,7 @@ export function AppNav({ variant }: AppNavProps) {
             stroke-linecap="round" 
             stroke-linejoin="round" 
           />
-        
           <circle cx="140" cy="60" r="7.5" fill="none" stroke="#00E5FF" stroke-width="3" />
-        
           <circle cx="140" cy="60" r="7" fill="none" stroke="url(#mGradient)" stroke-width="4" />
         </svg>
 
