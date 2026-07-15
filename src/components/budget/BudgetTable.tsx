@@ -1,3 +1,5 @@
+// src\components\budget\BudgetTable.tsx
+
 // The 3/4-width sectional budget table.
 //   • Three sticky section headers (Income / Expenses / Savings) that
 //     pin perfectly at top-0 and push each other away on scroll.
@@ -8,9 +10,8 @@
 
 import { useState, useRef, useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import {
-  fmtAmt, signColor, type ProgressKind,
-  savingActualColor, incomeRemainingColor, savingRemainingColor,
+import { fmtAmtSigned, type ProgressKind,
+  savingActualColor, incomeRemainingColor, savingRemainingColor, expenseRemainingColor,
 } from '@/lib/budgetFormat'
 import { ProgressBar } from '@/components/budget/ProgressBar'
 import {
@@ -130,7 +131,7 @@ function Section({
         className={cn(
           "sticky z-30 grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center bg-navy/95 backdrop-blur px-3 bg-gradient-to-t to-transparent transition-all",
           kind === 'income' && 'from-green/30 border-b border-green/30',
-          kind === 'expense' && 'from-red/30 border-b border-red/30',
+          kind === 'expense' && 'from-amber/30 border-b border-amber/30',
           kind === 'saving' && 'from-cyan/30 border-b border-cyan/30'
         )}
         style={{ top: stickyTop, height: HEADER_H }}
@@ -218,12 +219,15 @@ function CategoryBox({
         <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
           <TotalCell value={group.budget} />
           <TotalCell value={group.actual} colorClass={
-            section === 'Savings' ? savingActualColor(group.actual) : 'text-white'
+          section === 'Savings' && group.actual < 0 
+            ? savingActualColor(group.actual) 
+            : 'text-white'
           } />
+
           <TotalCell value={group.remaining} colorClass={
             section === 'Income'   ? incomeRemainingColor(group.remaining)
             : section === 'Savings' ? savingRemainingColor(group.remaining)
-            : signColor(group.remaining)
+            : expenseRemainingColor(group.remaining)
           } />
         </div>
       </button>
@@ -246,7 +250,7 @@ function TotalCell({ value, colorClass }: { value: number; colorClass?: string }
       'font-sora text-xs font-bold tabular-nums text-right w-full pr-1.5',
       colorClass ?? 'text-white',
     )}>
-      {fmtAmt(value)}
+      {fmtAmtSigned(value)}
     </span>
   )
 }
@@ -271,7 +275,7 @@ function SubRow({
   const remainingColor =
     row.section === 'Income'   ? incomeRemainingColor(row.remaining)
     : row.section === 'Savings' ? savingRemainingColor(row.remaining)
-    : signColor(row.remaining)
+    : expenseRemainingColor(row.remaining)
 
   return (
     <div className="px-3 py-2.5 border-t border-line/40 grid grid-cols-[1.4fr_2fr] md:grid-cols-[3fr_5fr] items-center">
@@ -346,7 +350,7 @@ function BudgetCell({
       onClick={open}
       className="font-sora text-xs font-normal tabular-nums text-right w-full rounded pr-1.5 py-1 text-soft hover:bg-panel/50 transition-all"
     >
-      <span ref={textRef}>{fmtAmt(row.budget)}</span>
+      <span ref={textRef}>{fmtAmtSigned(row.budget)}</span>
     </button>
   )
 }
@@ -369,7 +373,7 @@ function ReadOnlyCell({
         className,
       )}
     >
-      <span ref={textRef}>{fmtAmt(value)}</span>
+      <span ref={textRef}>{fmtAmtSigned(value)}</span>
     </button>
   )
 }

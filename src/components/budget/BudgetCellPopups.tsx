@@ -9,7 +9,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { fmtAmt, fmtCompact } from '@/lib/budgetFormat'
+import { fmtAmt, fmtAmtSigned, savingActualColor, incomeRemainingColor, savingRemainingColor, expenseRemainingColor } 
+from '@/lib/budgetFormat'
+
 import { useSubcatHistory } from '@/hooks/useSubcatHistory'
 import { CalendarWidget } from '@/components/layout/CalendarWidget'
 import type { BudgetRow } from '@/hooks/useBudgetTable'
@@ -129,7 +131,10 @@ export function BudgetEditPopup({
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
 
   // Income progress colour cue: income bars green, others red-ish accent
-  const barColor = row.section === 'Income' ? '#10b981' : '#ef4444'
+  const barColor = 
+    row.section === 'Income' ? '#10b981' 
+    : row.section === 'Expense' ? '#ef4444' 
+    : '#44b9ef'
 
   return (
     <AnchoredPopup anchorRect={anchorRect} onClose={onClose} width={340}>
@@ -184,7 +189,7 @@ export function BudgetEditPopup({
                     onMouseLeave={() => setHoverIdx(null)}>
                     {hoverIdx === i && (
                       <span className="font-dm text-[10px] font-semibold text-white mb-1 whitespace-nowrap">
-                        {fmtCompact(p.amount)}
+                        {fmtAmt(p.amount)}
                       </span>
                     )}
                     <div
@@ -242,11 +247,22 @@ export function BudgetEditPopup({
 // ════════════════════════════════════════════════════════════════
 interface RemainingPopupProps {
   row:         BudgetRow
-  anchorRect: DOMRect
+  anchorRect:  DOMRect
   onClose:     () => void
 }
+
 export function RemainingPopup({ row, anchorRect, onClose }: RemainingPopupProps) {
   const showRollover = row.rollover_enabled && row.section === 'Expense'
+
+  // ── Exact color logic pulled from BudgetTable's SubRow ──
+  const actualColor = row.section === 'Savings'
+    ? savingActualColor(row.actual)
+    : 'text-soft'
+
+  const remainingColor =
+    row.section === 'Income'    ? incomeRemainingColor(row.remaining)
+    : row.section === 'Savings' ? savingRemainingColor(row.remaining)
+    : expenseRemainingColor(row.remaining)
 
   return (
     <AnchoredPopup anchorRect={anchorRect} onClose={onClose} width={280}>
@@ -257,22 +273,30 @@ export function RemainingPopup({ row, anchorRect, onClose }: RemainingPopupProps
             <Row 
               label="Rollover from previous months" 
               value={row.rollover_amount} 
-              muted={row.rollover_amount >= 0} 
-              showSign 
+              colorClass={row.rollover_amount >= 0 ? 'text-soft' : 'text-red'} 
             />
           )}
-          <Row label="This month's budget" value={row.budget} />
+          
+          <Row 
+            label="This month's budget" 
+            value={row.budget} 
+            colorClass="text-soft" 
+          />
+          
           <Row
             label="Actual"
-            value={row.section === 'Income' ? row.actual : -Math.abs(row.actual)}
-            showSign // ➕ Added here too so overspending shows a clean minus sign
+            // Retaining original popup logic: negating expense actuals so they show as deductions
+            value= {row.actual}
+            colorClass= {actualColor}
           />
+          
           <div className="h-px bg-line my-1" />
+          
           <Row 
             label="Remaining" 
             value={row.remaining} 
             bold 
-            showSign // ➕ Added here to catch negative remaining balances!
+            colorClass={remainingColor}
           />
         </div>
       </div>
@@ -280,24 +304,22 @@ export function RemainingPopup({ row, anchorRect, onClose }: RemainingPopupProps
   )
 }
 
-function Row({ label, value, bold, muted, showSign }: {
-  label: string; value: number; bold?: boolean; muted?: boolean; showSign?: boolean
+// ── Cleaned up Row Component ──
+function Row({ label, value, bold, colorClass }: {
+  label: string; value: number; bold?: boolean; colorClass?: string
 }) {
-  const isNegative = value < 0;
-
   return (
     <div className="flex items-center justify-between">
       <span className={cn('font-dm text-xs', bold ? 'text-white font-bold' : 'text-soft')}>
         {label}
       </span>
       <span className={cn(
-        'font-dm text-xs',
+        'font-dm text-xs tabular-nums',
         bold ? 'font-bold' : '',
-        // 🔴 If not muted and value is negative, fallback to text-red
-        muted ? 'text-soft' : isNegative ? 'text-red' : 'text-white',
+        colorClass ?? 'text-white'
       )}>
-        {/* 🔄 Force injection of the minus sign if allowed and negative */}
-        {isNegative && showSign ? '-' : ''}{fmtAmt(value)}
+        {/* fmtAmtSigned automatically natively handles the "-" sign for values < 0 */}
+        {fmtAmtSigned(value)}
       </span>
     </div>
   )

@@ -19,6 +19,7 @@
   --color-red:   #ef4444;
   --color-pink:  #ec4899;
   --color-cyan:  #22d3ee;
+  --color-white: #f5f5f5;
 
   /* ── Add these lines INSIDE your existing @theme { } block ─────── */
 
@@ -62,7 +63,7 @@ body {
   /* CHANGE: Force iOS to compute the absolute hardware height from a cold start */
   height: 100vh; 
   background-color: #080d1a;
-  color: #ffffff;
+  color: white;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

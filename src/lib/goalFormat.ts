@@ -12,6 +12,10 @@ export function fmtSignedAmt(n: number): string {
   return s + fmtAmt(n)
 }
 
+export function signColor(n: number): string {
+  return n > 0 ? 'text-green' : n === 0 ? 'text-soft' : 'text-red'
+}
+
 export function fmtCompact(n: number): string {
   const a = Math.abs(n)
   const s = n < 0 ? '−' : ''

@@ -1,14 +1,12 @@
 // src/components/budget/SummaryCards.tsx
 //
-// The static 1/4-width summary block: Budget card, Actual card, Summary card.
+// The static 1/4-width summary block: Left to Budget KPI, Budget card, Actual card, Summary card.
 // Stays in place while the table scrolls (parent applies sticky positioning).
 
-
 import { cn } from '@/lib/utils'
-import { fmtAmt, signColor, nwsColor, savingActualColor } from '@/lib/budgetFormat'
+import { fmtAmt, fmtAmtSigned, signColor, nwsColor, savingActualColor, expenseRemainingColor } from '@/lib/budgetFormat'
 import { ProgressBar } from '@/components/budget/ProgressBar'
 import type { BudgetSummary } from '@/hooks/useBudgetSummary'
-
 
 interface SummaryCardsProps {
   summary: BudgetSummary | undefined
@@ -16,13 +14,11 @@ interface SummaryCardsProps {
   loading: boolean
 }
 
-
 // Safe percentage: returns 0 when the denominator is 0 (avoids NaN/Infinity).
 function pct(part: number, whole: number): number {
   if (!whole) return 0
   return (part / whole) * 100
 }
-
 
 export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
   if (loading || !summary) {
@@ -33,45 +29,59 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
     )
   }
 
-
   // ── Budget card percentages: component / budget POOL ──────────────
-  // Pool = budget_needs + budget_wants + budget_save  (NOT income), so
-  // these match the Budgeted NWS denominator computed server-side.
   const budgetPool = summary.budget_needs + summary.budget_wants + summary.budget_save
   const bPctNeeds = pct(summary.budget_needs, budgetPool)
   const bPctWants = pct(summary.budget_wants, budgetPool)
   const bPctSave  = pct(summary.budget_save,  budgetPool)
 
-
   // ── Actual card percentages: component / relative pool ────────────
-  // actual_needs/wants/save are already the rollover-aware relative
-  // values (relative_Needs/Wants/Save) returned by get_budget_summary.
   const actualPool = summary.actual_needs + summary.actual_wants + summary.actual_save
   const aPctNeeds = pct(summary.actual_needs, actualPool)
   const aPctWants = pct(summary.actual_wants, actualPool)
   const aPctSave  = pct(summary.actual_save,  actualPool)
 
+  // ── Logic for Left to Budget formatting ───────────────────────────
+  const ltb = summary.left_to_budget
 
   return (
     <div className="flex flex-col gap-3">
 
+      {/* ── 1. LEFT TO BUDGET CARD (Isolated Standalone Card) ── */}
+      {(() => {
+        // Define dynamic color classes based on the sign of ltb
+          const textColor = ltb < 0 ? 'text-red-500' : signColor(ltb)
+  
+          let bgAndBorderColor = 'border-line bg-card' // Default for zero 
+          if (ltb < 0) {
+            bgAndBorderColor = 'border-red-500/30 bg-red-500/5'
+          } else if (ltb > 0) {
+            bgAndBorderColor = 'border-green-500/20 bg-green-500/5'
+          }
+  return (
+    <div className={cn('rounded-2xl border p-4 text-center transition-colors', bgAndBorderColor)}>
+  {/* Value Text */}
+  <p className={cn('font-sora text-xl font-bold', textColor)}>
+    {fmtAmtSigned(ltb)}
+  </p>
+  
+  {/* Label Text */}
+  <p className={cn('font-dm text-[10px] uppercase tracking-wider mt-1 transition-colors opacity-80', textColor)}>
+    Left to budget
+  </p>
+</div>
+  )
+})()}
 
-      {/* ── BUDGET CARD ── */}
+
+
+
+      {/* ── 2. BUDGET CARD ── */}
       <div className="rounded-2xl border border-line bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-base">📊</span>
-          <span className="font-sora text-sm font-bold text-white">Budget</span>
+          <span className="font-sora text-sm font-bold text-white/85">Budget</span>
         </div>
-
-
-        {/* Left-to-budget (card in card) */}
-        <div className="rounded-xl bg-navy/60 border border-line py-4 px-3 text-center mb-3">
-          <p className={cn('font-sora text-xl font-bold', signColor(summary.left_to_budget))}>
-            {fmtAmt(summary.left_to_budget)}
-          </p>
-          <p className="font-dm text-[10px] uppercase tracking-wider text-soft mt-1">Left to budget</p>
-        </div>
-
 
         <DetailRow label="Needs" value={summary.budget_needs} percent={bPctNeeds} />
         <DetailRow label="Wants" value={summary.budget_wants} percent={bPctWants} />
@@ -79,38 +89,29 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
         <NwsRow score={summary.budget_nws} />
       </div>
 
-
-      {/* ── ACTUAL CARD ── */}
+      {/* ── 3. ACTUAL CARD ── */}
       <div className="rounded-2xl border border-line bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-base">💸</span>
-          <span className="font-sora text-sm font-bold text-white">Actual</span>
+          <span className="font-sora text-sm font-bold text-white/85">Actual</span>
         </div>
-
-
-        <div className="rounded-xl bg-navy/60 border border-line py-4 px-3 text-center mb-3">
-          <p className={cn('font-sora text-xl font-bold', signColor(summary.left_to_save))}>
-            {fmtAmt(summary.left_to_save)}
-          </p>
-          <p className="font-dm text-[10px] uppercase tracking-wider text-soft mt-1">Left to save</p>
-        </div>
-
 
         <DetailRow label="Needs" value={summary.actual_needs} percent={aPctNeeds} />
         <DetailRow label="Wants" value={summary.actual_wants} percent={aPctWants} />
         <DetailRow label="Save"  value={summary.actual_save}  percent={aPctSave}
-                   colorClass={savingActualColor(summary.actual_save)} />
+                   colorClass={ summary.actual_save < 0 
+            ? savingActualColor(summary.actual_save) 
+            : 'text-white'
+          } />
         <NwsRow score={summary.actual_nws} />
       </div>
 
-
-      {/* ── SUMMARY CARD ── */}
+      {/* ── 4. SUMMARY CARD ── */}
       <div className="rounded-2xl border border-line bg-card p-4">
         <div className="flex items-center gap-2 mb-4">
           <span className="text-base">📑</span>
-          <span className="font-sora text-sm font-bold text-white">Summary</span>
+          <span className="font-sora text-sm font-bold text-white/85">Summary</span>
         </div>
-
 
         <SummaryBar
           label="Income" kind="income" month={month}
@@ -132,25 +133,20 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
   )
 }
 
-
 // ── Detail row (Needs / Wants / Save) ─────────────────────────────
 function DetailRow({ label, value, percent, signed, colorClass }: {
   label: string; value: number; percent?: number; signed?: boolean; colorClass?: string
 }) {
   const cls = colorClass ?? (signed ? signColor(value) : 'text-white')
 
-
-  // 💡 TWEAK THESE VALUES TO ALIGN PERCENTAGES WITH THE EDGE PERFECTLY:
-  const totalWidth = "min-w-[140px]" // Controls the overall width of the data block
-  const pipeWidth  = "24px"          // Spacing width around the "|" line
-  const textWidth  = "26px"          // Width of the percentage text cell. Lowering this pushes it right!
-
+  const totalWidth = "min-w-[140px]" 
+  const pipeWidth  = "24px"          
+  const textWidth  = "26px"          
 
   return (
     <div className="flex items-center justify-between py-0.5">
       <span className="font-dm text-xs text-soft">{label}</span>
-     
-      {/* Three-column layout to systematically keep spacing identical across all rows */}
+      
       <div
         className={cn("grid items-center font-dm text-xs tabular-nums", totalWidth)}
         style={{ gridTemplateColumns: `1fr ${pipeWidth} ${textWidth}` }}
@@ -172,7 +168,6 @@ function DetailRow({ label, value, percent, signed, colorClass }: {
   )
 }
 
-
 // ── NWS score row ─────────────────────────────────────────────────
 function NwsRow({ score }: { score: number }) {
   return (
@@ -185,8 +180,8 @@ function NwsRow({ score }: { score: number }) {
   )
 }
 
-
 // ── Summary progress bar block ────────────────────────────────────
+// 1. Added 'actualExpense' to the component props type definition
 function SummaryBar({ label, kind, month, actual, budget, actualWord, budgetWord }: {
   label: string
   kind: 'income' | 'expense' | 'saving'
@@ -195,12 +190,15 @@ function SummaryBar({ label, kind, month, actual, budget, actualWord, budgetWord
   budget: number
   actualWord: string
   budgetWord: string
+  
 }) {
-  const actualColor =
-    kind === 'income'  ? 'text-green'
-    : kind === 'saving' ? 'text-cyan'
-    : 'text-red'
+  const remaining = budget - actual
 
+  // 2. Updated the conditional logic to use your new function
+  const actualColor =
+    kind === 'income'   ? 'text-green'
+    : kind === 'saving' ? 'text-cyan'
+    : expenseRemainingColor(remaining) // <-- Changed this line
 
   return (
     <div className="mb-4 last:mb-0">

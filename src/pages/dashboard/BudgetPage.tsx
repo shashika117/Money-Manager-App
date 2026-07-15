@@ -1,5 +1,5 @@
 // src/pages/dashboard/BudgetPage.tsx
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { monthKey, monthLabel, parseMonthKey } from '@/lib/budgetFormat'
 import { useBudgetTable }       from '@/hooks/useBudgetTable'
@@ -16,19 +16,26 @@ export default function BudgetPage() {
   const [month, setMonth] = useState<string>(monthKey(now.getFullYear(), now.getMonth() + 1))
   const [showAll, setShowAll] = useState(false)
 
+  // Popups
   const [nwsOpen, setNwsOpen] = useState(false)
   const [nwsRect, setNwsRect] = useState<DOMRect | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerRect, setPickerRect] = useState<DOMRect | null>(null)
 
+  const nwsBtnRef   = useRef<HTMLButtonElement>(null)
+  const monthBtnRef = useRef<HTMLButtonElement>(null)
+
+  // Data
   const { data: rows = [], isLoading: rowsLoading } = useBudgetTable(month)
   const { data: summary, isLoading: sumLoading }    = useBudgetSummary(month)
 
+  // Lazy auto-copy for empty months
   useEnsureMonthBudget(month, rows, rowsLoading)
 
   const { year, month: m } = parseMonthKey(month)
   const isCurrentMonth = year === now.getFullYear() && m === now.getMonth() + 1
 
+  // ── Month navigation ──────────────────────────────────────────────
   function goPrev() {
     const d = new Date(year, m - 2, 1)
     setMonth(monthKey(d.getFullYear(), d.getMonth() + 1))
@@ -42,22 +49,27 @@ export default function BudgetPage() {
     setMonth(monthKey(now.getFullYear(), now.getMonth() + 1))
   }
 
-  function openNws(e: React.MouseEvent<HTMLButtonElement>) {
-    setNwsRect(e.currentTarget.getBoundingClientRect())
+  function openNws() {
+    if (nwsBtnRef.current) setNwsRect(nwsBtnRef.current.getBoundingClientRect())
     setNwsOpen(true)
   }
-  function openPicker(e: React.MouseEvent<HTMLButtonElement>) {
-    setPickerRect(e.currentTarget.getBoundingClientRect())
+  function openPicker() {
+    if (monthBtnRef.current) setPickerRect(monthBtnRef.current.getBoundingClientRect())
     setPickerOpen(true)
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-y-auto animate-fade-in">
-      
-      <div className="flex-none border-b border-line bg-card z-40 sticky top-0 lg:static"
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-hidden animate-fade-in">
+
+      {/* ══ STICKY TOP HEADER ══ */}
+      <div className="flex-none border-b border-line bg-card z-40"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 10px)' }}>
+
+        {/* Row 1: title + controls */}
         <div className="flex items-center gap-2 px-4 pb-2 flex-wrap">
           <h1 className="font-sora text-xl font-bold text-white leading-none mr-auto">Budget</h1>
+
+          {/* Show all toggle */}
           <button onClick={() => setShowAll(v => !v)}
             className="flex items-center gap-2 touch-manipulation">
             <span className={cn('font-dm text-[11px]', showAll ? 'text-green' : 'text-soft')}>
@@ -69,16 +81,20 @@ export default function BudgetPage() {
                 showAll ? 'translate-x-[18px]' : 'translate-x-[3px]')} />
             </span>
           </button>
-          <button onClick={openNws}
+
+          {/* NWS ratio */}
+          <button ref={nwsBtnRef} onClick={openNws}
             className="rounded-lg border border-line px-3 py-1.5 font-dm text-xs text-soft hover:border-green hover:text-green transition-colors touch-manipulation">
             NWS ratio
           </button>
+
+          {/* Month selector */}
           <div className="flex items-center gap-1">
             <button onClick={goPrev}
               className="h-8 w-8 flex items-center justify-center rounded-lg border border-line bg-navy font-sora text-sm text-soft hover:text-white hover:border-soft transition-colors">
               ‹
             </button>
-            <button onClick={openPicker}
+            <button ref={monthBtnRef} onClick={openPicker}
               className="font-sora text-sm font-semibold text-white min-w-[120px] text-center hover:text-green transition-colors touch-manipulation">
               {monthLabel(month)}
             </button>
@@ -88,6 +104,8 @@ export default function BudgetPage() {
               ›
             </button>
           </div>
+
+          {/* Today */}
           <button onClick={goToday}
             className={cn('rounded-lg border px-3 py-1.5 font-dm text-xs transition-colors touch-manipulation',
               isCurrentMonth ? 'border-line text-muted cursor-default' : 'border-green/40 text-green hover:bg-green/10')}>
@@ -96,17 +114,26 @@ export default function BudgetPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-visible lg:flex lg:flex-row lg:gap-4 lg:px-4 lg:pt-4 lg:pb-4 scroll-safe-bottom">
-        <div className="lg:flex lg:flex-[3] lg:min-w-0 lg:flex-col lg:overflow-hidden lg:min-h-[135vh] px-2 py-3 lg:p-0">
-          <div className="flex-1 min-h-0 lg:overflow-y-auto">
+
+      {/* ══ BODY ══ */}
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom">
+        <div className="lg:flex lg:gap-4 lg:px-4 lg:py-4">
+
+          {/* Sectional table — 3/4 */}
+          <div className="lg:flex-[3] lg:min-w-0 px-2 py-3 lg:p-0">
             <BudgetTable rows={rows} month={month} showAll={showAll} />
           </div>
-        </div>
-        <div className="lg:flex-1 lg:max-w-[26%] lg:h-fit lg:overflow-visible px-3 pb-6 lg:p-0">
-          <SummaryCards summary={summary} month={month} loading={sumLoading} />
+
+          {/* Summary cards — 1/4, sticky on laptop */}
+          <div className="lg:flex-1 lg:max-w-[26%] px-3 pb-6 lg:p-0">
+            <div className="lg:sticky lg:top-2">
+              <SummaryCards summary={summary} month={month} loading={sumLoading} />
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* ══ POPUPS ══ */}
       {nwsOpen && nwsRect && (
         <NwsRatioPopup anchorRect={nwsRect} onClose={() => { setNwsOpen(false); setNwsRect(null) }} />
       )}
@@ -122,6 +149,7 @@ export default function BudgetPage() {
   )
 }
 
+// ── Month picker popup ────────────────────────────────────────────
 function MonthPicker({ month, rect, onSelect, onClose }: {
   month: string
   rect: DOMRect
@@ -131,6 +159,7 @@ function MonthPicker({ month, rect, onSelect, onClose }: {
   const now = new Date()
   const { year: curY, month: curM } = parseMonthKey(month)
   const [py, setPy] = useState(curY)
+
   const width = 288, margin = 8
   let left = rect.left + rect.width / 2 - width / 2
   left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
