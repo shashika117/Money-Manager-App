@@ -51,14 +51,23 @@ function todayLocal(): string {
   return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-')
 }
 
-/** Compact amount — NO sign prefix */
-function fmtCompact(n: number): string {
+// ── Standard amount: 100,000.00 — no sign, no currency ─────────────
+function fmtAmt(n: number): string {
+  return Math.abs(n).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+}
+
+/* Compact amount — NO sign prefix 
+function fmtCompact1(n: number): string {
   if (n <= 0)         return ''
   if (n >= 1_000_000) return `${(n/1_000_000).toFixed(1)}M`
   if (n >= 10_000)    return `${Math.round(n/1_000)}K`
   if (n >= 1_000)     return `${(n/1_000).toFixed(1)}K`
   return Math.round(n).toString()
 }
+  */
 
 function fmtFullDate(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
@@ -175,14 +184,14 @@ function DayCell({ cell, data, isToday, isWeekend, onClick }: DayCellProps) {
       </span>
       {/* Income — no sign, green color only */}
       {data && data.total_income > 0 && (
-        <span className="mt-1 font-dm text-[9px] font-medium leading-none text-green truncate w-full">
-          {fmtCompact(data.total_income)}
+        <span className="mt-1 font-dm text-[10px] font-medium leading-none text-green truncate w-full">
+          {fmtAmt(data.total_income)}
         </span>
       )}
       {/* Expense — no sign, red color only */}
       {data && data.total_expense > 0 && (
-        <span className="mt-0.5 font-dm text-[9px] font-medium leading-none text-red truncate w-full">
-          {fmtCompact(data.total_expense)}
+        <span className="mt-0.5 font-dm text-[10px] font-medium leading-none text-red truncate w-full">
+          {fmtAmt(data.total_expense)}
         </span>
       )}
     </button>

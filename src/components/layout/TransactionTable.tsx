@@ -69,12 +69,12 @@ function DateGroupHeader({ group, onDateGroupSelect, hideTotals }: DateGroupHead
         <div className="flex items-center gap-2 mr-3">
           {group.total_income > 0 && (
             <span className="font-sora text-xs font-semibold text-green">
-              +{fmtAmt(group.total_income)}
+              {fmtAmt(group.total_income)} {/* -{fmtAmt(group.total_income)} for amount with sign */}
             </span>
           )}
           {group.total_expense > 0 && (
             <span className="font-sora text-xs font-semibold text-red">
-              −{fmtAmt(group.total_expense)}
+              {fmtAmt(group.total_expense)} {/* -{fmtAmt(group.total_expense)} for amount with sign */}
             </span>
           )}
         </div>

@@ -3,9 +3,9 @@
 // The cyan FAB's two-tab window:
 //   Tab 1 "Goal Fund Allocation Manager" — allocate money to a goal for
 //         a month, with the once-per-month override flow and the
-//         "add another?" continuation.
+//         "add another?" continuation. Supports positive, negative, or zero allocations.
 //   Tab 2 "Funds Share Manager" — transfer funds goal → goal, with the
-//         from-goal balance-sufficiency check.
+//         from-goal balance-sufficiency check. Supports positive or zero transfers.
 //
 // Opened by the FAB, or by tapping a month-section header (which passes
 // initialMonth / initialDate + an initialTab).
@@ -107,8 +107,9 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 const allocSchema = z.object({
   month:  z.string().min(1, 'Pick a month'),
   goal:   z.string().min(1, 'Select a goal'),
+  // 🎯 Removed restriction: amount can be positive, negative, or zero. Just needs to be a valid number.
   amount: z.string().min(1, 'Enter an amount')
-    .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0, { message: 'Amount must be greater than 0' }),
+    .refine(v => !isNaN(parseFloat(v)), { message: 'Enter a valid number' }),
   note:   z.string().optional(),
 })
 type AllocForm = z.infer<typeof allocSchema>
@@ -261,7 +262,7 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
           type="number" 
           inputMode="decimal" 
           step="0.01" 
-          min="0" 
+          // 🎯 Removed min="0" to natively allow negative values on devices
           placeholder="0.00"
           {...register('amount')} 
           className={cn(
@@ -376,8 +377,9 @@ const shareSchema = z.object({
   date:      z.string().min(1, 'Pick a date'),
   from_goal: z.string().min(1, 'Select a source goal'),
   to_goal:   z.string().min(1, 'Select a destination goal'),
+  // 🎯 Updated restriction: amount must be positive or zero (>= 0)
   amount:    z.string().min(1, 'Enter an amount')
-    .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0, { message: 'Amount must be greater than 0' }),
+    .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, { message: 'Amount must be 0 or greater' }),
   note:      z.string().optional(),
 }).superRefine((d, ctx) => {
   if (d.from_goal && d.to_goal && d.from_goal === d.to_goal) {
@@ -484,7 +486,7 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
           type="number" 
           inputMode="decimal" 
           step="0.01" 
-          min="0" 
+          min="0" // 🎯 Kept min="0" to natively block negative input fields for Shares
           placeholder="0.00"
           {...register('amount')} 
           className={cn(
