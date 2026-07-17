@@ -36,7 +36,7 @@ const schema = z
     amount:       z
       .string()
       .min(1, 'Enter an amount')
-      .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0, {
+      .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,{
         message: 'Amount must be a positive number',
       }),
     fee:        z.string().optional(),

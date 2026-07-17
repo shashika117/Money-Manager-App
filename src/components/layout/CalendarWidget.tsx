@@ -209,7 +209,7 @@ function DayOverlay({ selectedDate, inheritedFilters, onClose }: DayOverlayProps
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   const isLaptop = useIsLaptop()
 
-  function handleClose() { setClosing(true); setTimeout(onClose, 50) }
+  function handleClose() { setClosing(true); setTimeout(onClose, 240) }
 
   // Responsive position + animation
   const panelCls = cn(
@@ -282,6 +282,9 @@ function DayOverlay({ selectedDate, inheritedFilters, onClose }: DayOverlayProps
           className={cn(
            "fixed z-[45] h-14 w-14 rounded-full bg-green shadow-lg shadow-green/30 flex items-center justify-center font-sora text-2xl font-light text-white transition-all active:scale-90 touch-manipulation animate-fade-in",
       
+           // 🎯 THE FIX: Tie the animation to the 'closing' state
+           closing ? "animate-fade-out pointer-events-none" : "animate-fade-in",
+
             // MOBILE: Anchor to the right side
            "right-5",
       
