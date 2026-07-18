@@ -20,7 +20,7 @@ const schema = z
     capital_amount:  z
       .string()
       .min(1, 'Enter the capital amount')
-      .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0, {
+      .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, {
         message: 'Capital amount must be greater than 0',
       }),
     interest_amount: z
