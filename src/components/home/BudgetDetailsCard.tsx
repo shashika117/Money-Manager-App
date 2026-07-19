@@ -16,7 +16,7 @@
 import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import {
-  fmtAmt, signColor, monthKey,
+  fmtAmtSigned, signColor, monthKey,
 } from '@/lib/budgetFormat'
 import { useBudgetTable, type BudgetRow } from '@/hooks/useBudgetTable'
 import { useHomePrefs, useSetHomePref, type HomePrefKey } from '@/hooks/useHomePrefs'
@@ -106,7 +106,7 @@ export function BudgetDetailsCard() {
                   'font-sora text-xs font-semibold tabular-nums flex-none',
                   signColor(r.remaining),
                 )}>
-                  {fmtAmt(r.remaining)}
+                  {fmtAmtSigned(r.remaining)}
                 </span>
               </div>
             ))}
@@ -122,7 +122,7 @@ export function BudgetDetailsCard() {
                   'font-sora text-xs font-semibold tabular-nums flex-none',
                   signColor(restTotal),
                 )}>
-                  {fmtAmt(restTotal)}
+                  {fmtAmtSigned(restTotal)}
                 </span>
               </div>
             )}

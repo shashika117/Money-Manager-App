@@ -59,7 +59,7 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
             bgAndBorderColor = 'border-green-500/20 bg-green-500/5'
           }
   return (
-    <div className={cn('rounded-2xl border p-4 text-center transition-colors', bgAndBorderColor)}>
+    <div className={cn('rounded-2xl border p-3 text-center transition-colors', bgAndBorderColor)}>
   {/* Value Text */}
   <p className={cn('font-sora text-xl font-bold', textColor)}>
     {fmtAmtSigned(ltb)}
@@ -78,7 +78,7 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
 
       {/* ── 2. BUDGET CARD ── */}
       <div className="rounded-2xl border border-line bg-card p-4">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <span className="text-base">📊</span>
           <span className="font-sora text-sm font-bold text-white/85">Budget</span>
         </div>
@@ -91,7 +91,7 @@ export function SummaryCards({ summary, month, loading }: SummaryCardsProps) {
 
       {/* ── 3. ACTUAL CARD ── */}
       <div className="rounded-2xl border border-line bg-card p-4">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <span className="text-base">💸</span>
           <span className="font-sora text-sm font-bold text-white/85">Actual</span>
         </div>
@@ -201,7 +201,7 @@ function SummaryBar({ label, kind, month, actual, budget, actualWord, budgetWord
     : expenseRemainingColor(remaining) // <-- Changed this line
 
   return (
-    <div className="mb-4 last:mb-0">
+    <div className="mb-3 last:mb-0">
       <p className="font-dm text-sm text-soft mb-1.5">{label}</p>
       <ProgressBar actual={actual} effectiveBudget={budget} kind={kind} month={month} height={8} />
       <div className="flex items-center justify-between mt-1.5">

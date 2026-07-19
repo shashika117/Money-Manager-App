@@ -51,7 +51,7 @@ export function LeftToSaveCard() {
 
   return (
     <div className={cn(
-      "relative rounded-2xl border p-5 flex flex-col items-center justify-center text-center min-h-[130px] transition-colors",
+      "relative rounded-2xl border p-6 flex flex-col items-center justify-center text-center min-h-[10px] transition-colors",
       bgAndBorderColor
     )}>
 
