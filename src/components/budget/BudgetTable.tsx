@@ -139,9 +139,11 @@ function Section({
         <span className="font-sora text-sm font-bold uppercase tracking-widest text-soft">
           {title}
         </span>
-        <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] text-right pr-1.5">
-          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-1.5">Budget</span>
-          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-1.5">Actual</span>
+        {/* CHANGED: Mobile grid is now 2 cols (1fr_1.2fr) */}
+        <div className="grid grid-cols-[1fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] text-right pr-1.5">
+          <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-4">Budget</span>
+          {/* CHANGED: Added hidden md:block */}
+          <span className="hidden md:block font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-1.5">Actual</span>
           <span className="font-sora text-[10px] font-bold uppercase tracking-widest text-soft/60 pr-2.5">Remaining</span>
         </div>
       </div>
@@ -216,12 +218,18 @@ function CategoryBox({
           </span>
           <span className="font-sora text-xs font-bold text-white truncate">{group.label}</span>
         </span>
-        <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
-          <TotalCell value={group.budget} />
-          <TotalCell value={group.actual} colorClass={
-          section === 'Savings' && group.actual < 0 
-            ? savingActualColor(group.actual) 
-            : 'text-white'
+        {/* CHANGED: Mobile grid is now 2 cols (1fr_1.2fr) */}
+        <div className="grid grid-cols-[1fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
+          <TotalCell value={group.budget} className="pr-4"/>
+          
+          {/* CHANGED: Added className prop */}
+          <TotalCell 
+            value={group.actual} 
+            className="hidden md:block"
+            colorClass={
+              section === 'Savings' && group.actual < 0 
+                ? savingActualColor(group.actual) 
+                : 'text-white'
           } />
 
           <TotalCell value={group.remaining} colorClass={
@@ -244,11 +252,13 @@ function CategoryBox({
 }
 
 // Group total cell. colorClass defaults to white when not provided.
-function TotalCell({ value, colorClass }: { value: number; colorClass?: string }) {
+// CHANGED: Added className prop
+function TotalCell({ value, colorClass, className }: { value: number; colorClass?: string; className?: string }) {
   return (
     <span className={cn(
       'font-sora text-xs font-bold tabular-nums text-right w-full pr-1.5',
       colorClass ?? 'text-white',
+      className
     )}>
       {fmtAmtSigned(value)}
     </span>
@@ -296,14 +306,18 @@ function SubRow({
 
       {/* Right Side: numbers + progress bar */}
       <div className="flex flex-col">
-        <div className="grid grid-cols-[1fr_1.2fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
+        {/* CHANGED: Mobile grid is now 2 cols (1fr_1.2fr) */}
+        <div className="grid grid-cols-[1fr_1.2fr] md:grid-cols-[0.8fr_2.1fr_2.1fr] items-center text-right pr-1.5">
           <BudgetCell row={row} onCellClick={onCellClick} />
+          
           <ReadOnlyCell
             value={row.actual}
             colorClass={actualColor}
-            className="font-normal"
+            /* CHANGED: Added hidden md:block */
+            className="hidden md:block font-normal"
             onClick={rect => onCellClick({ kind: 'actual', row, rect })}
           />
+          
           <ReadOnlyCell
             value={row.remaining}
             colorClass={remainingColor}
@@ -320,6 +334,7 @@ function SubRow({
           />
         </div>
       </div>
+
     </div>
   )
 }
@@ -348,7 +363,7 @@ function BudgetCell({
   return (
     <button
       onClick={open}
-      className="font-sora text-xs font-normal tabular-nums text-right w-full rounded pr-1.5 py-1 text-soft hover:bg-panel/50 transition-all"
+      className="font-sora text-xs font-normal tabular-nums text-right w-full rounded pr-4 py-1 text-soft hover:bg-panel/50 transition-all"
     >
       <span ref={textRef}>{fmtAmtSigned(row.budget)}</span>
     </button>

@@ -1,6 +1,4 @@
-/**
- * TransactionsPage.tsx — complete rewrite with all adjustments
- */
+//src\pages\dashboard\TransactionsPage.tsx
 
 import { useState, useCallback, useRef } from 'react'
 import { cn }                          from '@/lib/utils'

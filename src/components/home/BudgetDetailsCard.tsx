@@ -39,7 +39,7 @@ export function BudgetDetailsCard() {
 
   // The population: Expense subcategories matching the toggle.
   const population = useMemo<BudgetRow[]>(
-    () => rows.filter(r => r.section === 'Expense' && r.rollover_enabled === rollover),
+    () => rows.filter(r => r.section === 'Expense' && r.rollover_enabled === rollover && (r.budget !== 0 || r.actual !== 0)),
     [rows, rollover],
   )
   const popNames = useMemo(() => population.map(r => r.ex_sub_category), [population])

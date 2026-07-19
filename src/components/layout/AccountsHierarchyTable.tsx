@@ -105,7 +105,7 @@ export function AccountsHierarchyTable({
             {/* Group header — click entire row to expand/collapse */}
             <button
               onClick={() => toggleG(group.name)}
-              className="w-full flex items-center justify-between px-4 py-3.5 bg-card hover:bg-panel/30 transition-colors touch-manipulation"
+              className="w-full flex items-center justify-between px-4 py-3.5 bg-card hover:bg-panel/100 transition-colors touch-manipulation"
             >
               <span className="font-sora text-sm font-bold text-white">{group.name}</span>
               <span className={cn('font-sora text-sm font-bold', headerAccent)}>
@@ -127,7 +127,7 @@ export function AccountsHierarchyTable({
                   {/* Category row — click to expand/collapse accounts */}
                   <button
                     onClick={() => toggleC(group.name, cat.name)}
-                    className="w-full flex items-center justify-between px-4 py-2 bg-panel/20 hover:bg-panel/20 transition-colors touch-manipulation"
+                    className="w-full flex items-center justify-between px-4 py-2 bg-panel/20 hover:bg-panel/40 transition-colors touch-manipulation"
                   >
                     <span className="font-dm text-xs font-semibold text-soft ">{cat.name}</span>
                     <span className={cn('font-dm text-xs font-medium', amtCls(cat.total))}>
@@ -148,7 +148,7 @@ export function AccountsHierarchyTable({
                           ai > 0 && 'border-t-2 border-line/15',
                           isSel
                             ? 'bg-green/10 border-l-green'
-                            : 'bg-navy/25 border-l-transparent hover:bg-navy/40',
+                            : 'bg-navy/25 border-l-transparent hover:bg-white/2',
                         )}
                       >
                         <span className={cn('font-dm text-m py-0.5', isSel ? 'text-green font-semibold' : 'text-white')}>

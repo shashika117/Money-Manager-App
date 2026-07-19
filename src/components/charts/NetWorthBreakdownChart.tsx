@@ -119,34 +119,49 @@ export function NetWorthBreakdownChart({ data, isLoading }: Props) {  //  period
 
       {/* Comparison card */}
       {cmp && (
-        <div className="absolute top-0 left-0 z-20 rounded-xl border border-line bg-navy/95 backdrop-blur px-3.5 py-2.5 shadow-xl animate-fade-in-scale">
-          <p className="font-dm text-[10px] uppercase tracking-wider text-muted mb-1.5">
-            vs {fmtFull2(cmp.prev.period_date)}
+        <div className="absolute top-0 left-0 z-20 rounded-xl border border-line bg-navy/95 backdrop-blur px-3.5 py-2.5 shadow-xl animate-fade-in-scale w-max">
+          <p className="font-dm text-[10px] uppercase tracking-wider text-white mb-2 text-left">
+            {new Date(cmp.cur.period_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} vs {new Date(cmp.prev.period_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
           </p>
-          <DiffRow label="Assets"    value={cmp.dAsset} goodIfUp />
-          <DiffRow label="Liability" value={cmp.dLiab}  goodIfUp />
-          <DiffRow label="Net Worth" value={cmp.dNet}   goodIfUp />
-          <button onClick={() => setClickIdx(null)}
-            className="mt-1.5 font-dm text-[10px] text-soft hover:text-white">Clear ✕</button>
+          
+          {/* 2-Column Grid Layout */}
+          <div className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1">
+            <DiffRow label="Assets"    value={cmp.dAsset} goodIfUp />
+            <DiffRow label="Liability" value={cmp.dLiab}  goodIfUp invertArrow />
+            <DiffRow label="Net Worth" value={cmp.dNet}   goodIfUp />
+          </div>
         </div>
       )}
 
       {/* Hover value card — positioned at hover column using pixel coords */}
       {active !== null && (
-        <div
-          className="absolute z-20 rounded-lg border border-line bg-navy/95 backdrop-blur px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in"
-          style={{
-            left:      geo.xC(active),
-            top:       PAD.top,
-            transform: 'translate(+25%, -20%)',
-          }}
-        >
-          <p className="font-dm text-[9px] text-soft text-center mb-0.5">{fmtFull2(cols[active].period_date)}</p>
-          <p className="font-dm text-[10px] text-green  text-center">A  {fmtK(cols[active].assets)}</p>
-          <p className="font-dm text-[10px] text-red    text-center">L  {fmtK(cols[active].liability)}</p>
-          <p className="font-sora text-xs  font-bold text-white  text-center">{fmtK(cols[active].net_worth)}</p>
-        </div>
-      )}
+      <div
+      className="absolute z-20 rounded-lg border border-line bg-navy/95 backdrop-blur px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in w-max"
+      style={{
+        left:      geo.xC(active),
+        top:       PAD.top,
+        transform: 'translate(+25%, -20%)',
+      }}
+    >
+      {/* Title / Period Date */}
+      <p className="font-sora text-[10px] text-white text-left mb-1.5 font-semibold">
+        {fmtFull2(cols[active].period_date)}
+      </p>
+    
+      {/* 2-Column Left-Aligned Grid */}
+      <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-[10px] font-sora">
+        <span className="text-green text-left">Assets</span>
+        <span className="text-green text-left">{fmtK(cols[active].assets)}</span>
+  
+        <span className="text-red text-left">Liability</span>
+        <span className="text-red text-left">{fmtK(Math.abs(cols[active].liability))}</span>
+  
+        <span className="text-soft text-left">Net Worth</span>
+        <span className="text-soft text-left">{fmtK(cols[active].net_worth)}</span>
+      </div>
+    </div>
+    )}
+
 
       {/* SVG — vbW matches container width exactly */}
       <svg
@@ -236,14 +251,33 @@ function Legend({ color, label }: { color: string; label: string }) {
     </div>
   )
 }
-function DiffRow({ label, value, goodIfUp }: { label: string; value: number; goodIfUp: boolean }) {
-  const up = value >= 0, isGood = goodIfUp ? up : !up
+
+function DiffRow({ 
+  label, 
+  value, 
+  goodIfUp, 
+  invertArrow = false 
+}: { 
+  label: string; 
+  value: number; 
+  goodIfUp: boolean; 
+  invertArrow?: boolean 
+}) {
+  const up = value >= 0
+  const isGood = goodIfUp ? up : !up
+  
+  const arrow = invertArrow ? (up ? '▼' : '▲') : (up ? '▲' : '▼')
+  
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="font-dm text-[10px] text-soft">{label}</span>
-      <span className={cn('font-dm text-[11px] font-semibold', isGood ? 'text-green' : 'text-red')}>
-        {up ? '▲' : '▼'} {fmtFull(value)}
+    <>
+      <span className="font-dm text-[10px] text-soft text-left flex items-center">
+        {label}
       </span>
-    </div>
+      {/* CHANGED: text-right to text-left, added flex and gap-1.5 for perfect left alignment */}
+      <span className={cn('font-dm text-[11px] font-semibold text-left flex items-center gap-1.5', isGood ? 'text-green' : 'text-red')}>
+        <span>{arrow}</span>
+        <span>{fmtFull(value)}</span>
+      </span>
+    </>
   )
 }

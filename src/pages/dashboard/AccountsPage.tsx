@@ -29,13 +29,10 @@ export default function AccountsPage() {
   const [sheetDate,    setSheetDate]    = useState<string | undefined>()
   const [sheetAccount, setSheetAccount] = useState<string | undefined>()
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null)
-  
-
 
   const { data: balances = [], isLoading: balLoading } = useAccountBalances()
   const { data: nw }                                   = useNetWorth()
   const { data: history = [], isLoading: histLoading } = useNetWorthHistory(period)
-
 
   // ── Account selection ─────────────────────────────────────────────
   const handleSelectAccount = useCallback((account: string) => {
@@ -71,27 +68,27 @@ export default function AccountsPage() {
   }
 
   async function handleRecalculate() {
-  try {
-    const msg = await recalc.mutateAsync()
-    setRecalcMsg(msg)
-    setTimeout(() => setRecalcMsg(null), 5000)
-  } catch (err: unknown) {
-    const detail = (err as any)?.message ?? String(err)
-    setRecalcMsg(`Failed: ${detail}`)
-    console.error('recalculate_account_balances:', err)
-    setTimeout(() => setRecalcMsg(null), 8000)
+    try {
+      const msg = await recalc.mutateAsync()
+      setRecalcMsg(msg)
+      setTimeout(() => setRecalcMsg(null), 5000)
+    } catch (err: unknown) {
+      const detail = (err as any)?.message ?? String(err)
+      setRecalcMsg(`Failed: ${detail}`)
+      console.error('recalculate_account_balances:', err)
+      setTimeout(() => setRecalcMsg(null), 8000)
+    }
   }
-}
 
   const accountFilters  = selectedAccount ? { account: selectedAccount } : {}
   const showUpdatedNote = period === 'ALL'
   const recalc = useRecalculateBalances()
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-y-auto animate-fade-in">
+    /* CHANGED: Removed lg:overflow-y-auto so the main screen container remains rigid */
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden animate-fade-in">
 
-
-      {/* ── HEADER ── */}
+      {/* ── HEADER (Pinned Outside Scroll View) ── */}
       <div className="border-b border-line bg-card px-4 flex-none"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 14px)', paddingBottom: '12px' }}>
         <div className="flex items-center justify-between gap-3">
@@ -131,75 +128,75 @@ export default function AccountsPage() {
         </div>
       </div>
 
+      {/* ── ADDED: UNIFIED SCROLLABLE BODY CONTAINER ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom pb-4">
 
-      {/* ── CHARTS (laptop only) ── */}
-      <div className="hidden lg:block px-4 pt-4 flex-none">
-        <div className="rounded-2xl border border-line bg-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1">
-              <ChartTab active={chartKind === 'performance'} onClick={() => setChartKind('performance')}>
-                Net Worth Performance
-              </ChartTab>
-              <ChartTab active={chartKind === 'breakdown'} onClick={() => setChartKind('breakdown')}>
-                Net Worth Breakdown
-              </ChartTab>
+        {/* ── CHARTS (laptop only) ── */}
+        <div className="hidden lg:block px-4 pt-4">
+          <div className="rounded-2xl border border-line bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1">
+                <ChartTab active={chartKind === 'performance'} onClick={() => setChartKind('performance')}>
+                  Net Worth Performance
+                </ChartTab>
+                <ChartTab active={chartKind === 'breakdown'} onClick={() => setChartKind('breakdown')}>
+                  Net Worth Breakdown
+                </ChartTab>
+              </div>
+              <div className="flex rounded-lg border border-line bg-navy overflow-hidden">
+                {PERIODS.map(p => (
+                  <button key={p.value} onClick={() => setPeriod(p.value)}
+                    className={cn('px-3 py-1.5 font-dm text-xs transition-colors touch-manipulation',
+                      period === p.value ? 'bg-green/15 text-green' : 'text-soft hover:text-white')}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex rounded-lg border border-line bg-navy overflow-hidden">
-              {PERIODS.map(p => (
-                <button key={p.value} onClick={() => setPeriod(p.value)}
-                  className={cn('px-3 py-1.5 font-dm text-xs transition-colors touch-manipulation',
-                    period === p.value ? 'bg-green/15 text-green' : 'text-soft hover:text-white')}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            {chartKind === 'performance'
+              ? <NetWorthPerformanceChart data={history} period={period} isLoading={histLoading} />
+              : <NetWorthBreakdownChart   data={history} period={period} isLoading={histLoading} />
+            }
+            {showUpdatedNote && (
+              <p className="text-right font-dm text-[10px] text-muted mt-2">
+                All-time data · refreshed periodically
+              </p>
+            )}
           </div>
-          {chartKind === 'performance'
-            ? <NetWorthPerformanceChart data={history} period={period} isLoading={histLoading} />
-            : <NetWorthBreakdownChart   data={history} period={period} isLoading={histLoading} />
-          }
-          {showUpdatedNote && (
-            <p className="text-right font-dm text-[10px] text-muted mt-2">
-              All-time data · refreshed periodically
-            </p>
-          )}
         </div>
+
+        {/* ── MAIN CONTENT AREA ── */}
+        {/* CHANGED: Made flex-directions responsive and cleaned up container constraints for natural inline page scroll flow */}
+        <div className="flex flex-col lg:flex-row lg:gap-4 lg:px-4 lg:pt-4 lg:overflow-visible">
+
+          {/* Hierarchy table */}
+          <div className="w-full lg:flex-1 lg:max-w-[33%] lg:overflow-visible">
+            <AccountsHierarchyTable
+              rows={balances}
+              netWorth={nw?.net_worth ?? 0}
+              selectedAccount={selectedAccount}
+              onSelectAccount={handleSelectAccount}
+              isLoading={balLoading}
+            />
+          </div>
+
+          {/* Transaction widget — laptop: locked to a clean fixed height with internal scroll */}
+          <div className="hidden lg:flex lg:flex-[2] lg:min-w-0 lg:h-[1000px] lg:rounded-2xl lg:border lg:border-line lg:bg-card lg:overflow-hidden lg:flex-col">
+            <TransactionTableWidget
+              key={`acc-desktop-${selectedAccount ?? 'all'}`}
+              filters={accountFilters}
+              showMonthNav
+              onDateGroupSelect={date => openSheet(date, selectedAccount ?? undefined)}
+              className="flex-1 min-h-0"
+            />
+          </div>
+        </div>
+
+        {/* Bottom spacer block to prevent FAB button overlaps */}
+        <div className="h-4 md:h-20" />
       </div>
 
-      {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 min-h-0 overflow-hidden lg:flex lg:flex-row lg:gap-4 lg:px-4 lg:pt-4 lg:pb-4 lg:overflow-visible">
-
-        {/* Hierarchy table */}
-        <div
-          className="h-full overflow-y-auto scroll-safe-bottom lg:h-fit lg:flex-1 lg:max-w-[33%] lg:overflow-visible"
-        >
-          <AccountsHierarchyTable
-            rows={balances}
-            netWorth={nw?.net_worth ?? 0}
-            selectedAccount={selectedAccount}
-            onSelectAccount={handleSelectAccount}
-            isLoading={balLoading}
-          />
-        </div>
-
-        {/* Transaction widget — laptop: always visible */}
-        <div className="hidden lg:flex lg:flex-[2] lg:min-w-0 lg:rounded-2xl lg:border lg:border-line lg:bg-card lg:overflow-hidden lg:flex-col"
-          style={{ minHeight: '135vh' }}>
-          <TransactionTableWidget
-            key={`acc-desktop-${selectedAccount ?? 'all'}`}
-            filters={accountFilters}
-            showMonthNav
-            onDateGroupSelect={date => openSheet(date, selectedAccount ?? undefined)}
-            className="flex-1 min-h-0"
-          />
-        </div>
-      </div>
-
-      {/* ── MOBILE OVERLAY ─────────────────────────────────────────
-           ref={mobileOverlayRef} is the key fix: the outside-click
-           handler checks this ref and skips firing when the user
-           taps anywhere inside the overlay. This fixes Bug 3.
-      ── */}
+      {/* ── MOBILE OVERLAY ── */}
       {mobileOpen && selectedAccount && (
         <div
           className={cn(
@@ -229,11 +226,6 @@ export default function AccountsPage() {
             className="flex-1 min-h-0"
           />
 
-          {/*
-            Mobile FAB — Fix for Bug 2: only renders INSIDE the overlay,
-            not in the main page layout. So it only appears when viewing
-            an account's transactions. z-[55] puts it above the z-50 overlay.
-          */}
           <button
             onClick={() => openSheet(undefined, selectedAccount)}
             aria-label="Add transaction"
@@ -245,11 +237,7 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {/*
-        Laptop FAB — Fix for Bug 1: always visible on laptop.
-        Pre-fills account if one is currently selected.
-        hidden on mobile (mobile FAB lives inside the overlay above).
-      */}
+      {/* Laptop FAB */}
       <div className="hidden lg:block">
         <FAB onClick={() => openSheet(undefined, selectedAccount ?? undefined)} />
       </div>
@@ -262,18 +250,16 @@ export default function AccountsPage() {
         initialAccount={sheetAccount}
       />
 
-
-       {/* Recalculate result toast */}
+      {/* Recalculate result toast */}
       {recalcMsg && (
-       <div className={cn(
-         'fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] animate-fade-in',
-         'rounded-xl border border-line bg-card px-4 py-3 shadow-xl',
-         'font-dm text-xs text-white max-w-xs text-center',
+        <div className={cn(
+          'fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] animate-fade-in',
+          'rounded-xl border border-line bg-card px-4 py-3 shadow-xl',
+          'font-dm text-xs text-white max-w-xs text-center',
         )}>
-         {recalcMsg}
+          {recalcMsg}
         </div>
       )}
-
 
     </div>
   )

@@ -1,3 +1,5 @@
+//src\components\budget\ProgressBar.tsx
+
 import { progressColor, todayMarkerRatio, type ProgressKind } from '@/lib/budgetFormat'
 import { cn } from '@/lib/utils'
 
@@ -19,7 +21,7 @@ export function ProgressBar({
   if (effectiveBudget < 0) {
     ratio = 2 // If overspent from last month's rollover, force a maxed-out state
   } else if (effectiveBudget === 0) {
-    ratio = actual > 0 ? 1 : 0
+    ratio = actual > 0 ? 2 : 0
   } else {
     ratio = actual / effectiveBudget
   }

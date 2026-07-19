@@ -13,12 +13,14 @@ function fmtK(n: number): string {
 function fmtFull(n: number): string {
   return Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
+/*
 function fmtDateLabel(dateStr: string, monthly: boolean): string {
   const d = new Date(dateStr + 'T00:00:00')
   return monthly
     ? d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
     : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
+*/
 function fmtDateFull(dateStr: string, monthly: boolean): string {
   const d = new Date(dateStr + 'T00:00:00')
   return monthly
@@ -66,6 +68,57 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
     const area = `${line} L${pts.at(-1)!.x.toFixed(1)},${(PAD.top + plotH).toFixed(1)} L${pts[0].x.toFixed(1)},${(PAD.top + plotH).toFixed(1)} Z`
     return { pts, line, area, plotH }
   }, [data, vbW])
+
+
+// ── Month / Year Borders & Centered Labels ───────────────────────
+  const timeAxis = useMemo(() => {
+    if (!geo || !data.length) return { lines: [], labels: [] }
+    
+    // Determine if we are tracking years or months
+    const sliceLen = monthly ? 4 : 7
+    let prevRaw = data[0].period_date.substring(0, sliceLen)
+    
+    const getLabelText = (dateStr: string) => monthly 
+      ? dateStr.substring(0, 4) 
+      : new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })
+
+    let currentLabel = getLabelText(data[0].period_date)
+    let currentStartX = geo.pts[0].x
+
+    const lines: number[] = []
+    const labels: { text: string; x: number }[] = []
+
+    for (let i = 1; i < data.length; i++) {
+      const curRaw = data[i].period_date.substring(0, sliceLen)
+      
+      // When the month/year changes
+      if (curRaw !== prevRaw) {
+        const borderX = geo.pts[i].x
+        lines.push(borderX)
+        
+        // Place label in the exact middle of the completed region
+        labels.push({
+          text: currentLabel,
+          x: (currentStartX + borderX) / 2
+        })
+
+        // Reset tracking for the next region
+        prevRaw = curRaw
+        currentLabel = getLabelText(data[i].period_date)
+        currentStartX = borderX
+      }
+    }
+
+    // Add the final region's label (from the last vertical line to the end of the chart)
+    const finalX = geo.pts.at(-1)!.x
+    labels.push({
+      text: currentLabel,
+      x: (currentStartX + finalX) / 2
+    })
+
+    return { lines, labels }
+  }, [data, geo, monthly])
+
 
   // ── Pointer → nearest index ───────────────────────────────────────
   const idxOf = useCallback((clientX: number): number | null => {
@@ -119,7 +172,7 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
       {/* Comparison card */}
       {cmp && (
         <div className="absolute top-0 left-0 z-20 rounded-xl border border-line bg-navy/95 backdrop-blur px-3.5 py-2.5 shadow-xl animate-fade-in-scale">
-          <p className="font-dm text-[10px] uppercase tracking-wider text-muted mb-1">
+          <p className="font-dm text-[10px] uppercase tracking-wider text-white mb-1">
             {fmtDateFull(data[cmp.aIdx].period_date, monthly)} → {fmtDateFull(data[cmp.bIdx].period_date, monthly)}
           </p>
           <div className="flex items-center gap-2">
@@ -130,7 +183,6 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
               {cmp.pos ? '+' : '−'}{Math.abs(cmp.pct).toFixed(1)}%
             </span>
           </div>
-          <button onClick={clearSel} className="mt-1.5 font-dm text-[10px] text-soft hover:text-white">Clear ✕</button>
         </div>
       )}
 
@@ -145,7 +197,7 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
           }}
         >
           <p className="font-sora text-sm font-bold text-white whitespace-nowrap">{fmtK(data[activeIdx].net_worth)}</p>
-          <p className="font-dm text-[9px] text-soft text-center">{fmtDateFull(data[activeIdx].period_date, monthly)}</p>
+          
         </div>
       )}
 
@@ -172,6 +224,41 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
           </linearGradient>
         </defs>
 
+<defs>
+          <linearGradient id="nwArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#10b981" stopOpacity="0.30" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0"    />
+          </linearGradient>
+        </defs>
+
+{/* Month / Year separators and centered labels */}
+        {timeAxis.lines.map((lx, i) => (
+          <line 
+            key={`line-${i}`} 
+            x1={lx} y1={PAD.top} 
+            x2={lx} y2={PAD.top + geo.plotH + 10} 
+            stroke="#1e2d45" 
+            strokeWidth="1" 
+          />
+        ))}
+        {timeAxis.labels.map((lbl, i) => (
+          <text 
+            key={`lbl-${i}`} 
+            x={lbl.x} 
+            y={PAD.top + geo.plotH + 8} 
+            fill="#64748b" 
+            fontSize="9" 
+            fontFamily="'DM Sans', sans-serif" 
+            textAnchor="middle"
+          >
+            {lbl.text}
+          </text>
+        ))}
+
+        {/* Area fill */}
+        <path d={geo.area} fill="url(#nwArea)" />
+
+
         {/* Area fill */}
         <path d={geo.area} fill="url(#nwArea)" />
 
@@ -185,10 +272,18 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
             <line x1={geo.pts[hoverIdx].x} y1={PAD.top}
                   x2={geo.pts[hoverIdx].x} y2={PAD.top + geo.plotH}
                   stroke="#1e2d45" strokeWidth="1" strokeDasharray="3 3" />
-            {/* X-axis date label aligned under hover position */}
-            <text x={geo.pts[hoverIdx].x} y={VB_H - 4} textAnchor="middle"
-              fill="#10b981" fontSize="10" fontWeight="600" fontFamily="'DM Sans', sans-serif">
-              {fmtDateLabel(data[hoverIdx].period_date, monthly)}
+            
+            {/* X-axis date label clamped to prevent edge cropping */}
+            <text 
+              x={Math.max(35, Math.min(vbW - 35, geo.pts[hoverIdx].x))} 
+              y={VB_H - 4} 
+              textAnchor="middle"
+              fill="#10b981" 
+              fontSize="10" 
+              fontWeight="600" 
+              fontFamily="'DM Sans', sans-serif"
+            >
+              {fmtDateFull(data[hoverIdx].period_date, monthly)}
             </text>
           </g>
         )}
@@ -214,11 +309,6 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
         <circle cx={last.x} cy={last.y} r="3" fill="#10b981" pointerEvents="none" />
       </svg>
 
-      {/* Static x-axis end labels */}
-      <div className="flex justify-between px-1 mt-0.5">
-        <span className="font-dm text-[10px] text-muted">{fmtDateLabel(data[0].period_date, monthly)}</span>
-        <span className="font-dm text-[10px] text-muted">{fmtDateLabel(data.at(-1)!.period_date, monthly)}</span>
-      </div>
 
       <p className="text-center font-dm text-[10px] text-muted mt-1">
         {!selected.length && 'Click two points to compare'}

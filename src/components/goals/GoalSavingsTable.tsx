@@ -224,7 +224,7 @@ function MonthSection({ section, onHeaderTap, onRecordTap }: {
           </span>
           {fullyAllocated
             ? <span className="text-sm">✔️</span>
-            : <span className="font-dm text-[11px] text-muted truncate">Left to save = {fmtSignedAmt(section.left_to_save)}</span>}
+            : <span className="font-dm text-[11px] text-soft/70 truncate"> Left to save = {fmtSignedAmt(section.left_to_save)}</span>}
         </div>
         <div className="flex items-center gap-3 flex-none">
           {section.total_allocated !== 0 && (
