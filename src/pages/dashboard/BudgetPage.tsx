@@ -59,7 +59,7 @@ export default function BudgetPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-hidden animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-hidden">
 
       {/* ══ STICKY TOP HEADER ══ */}
       <div className="flex-none border-b border-line bg-card z-40"

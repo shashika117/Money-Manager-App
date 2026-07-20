@@ -86,7 +86,7 @@ export default function AccountsPage() {
 
   return (
     /* CHANGED: Removed lg:overflow-y-auto so the main screen container remains rigid */
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
       {/* ── HEADER (Pinned Outside Scroll View) ── */}
       <div className="border-b border-line bg-card px-4 flex-none"

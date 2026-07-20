@@ -56,7 +56,7 @@ export default function HomePage() {
   const monthTitle = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
       {/* ══ WELCOME ══ */}
       <div className="flex-none flex items-start justify-between gap-3 border-b border-line bg-card px-5 pb-3"

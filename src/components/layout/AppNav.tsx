@@ -1,6 +1,8 @@
-import { NavLink } from 'react-router-dom'
-import { cn }      from '@/lib/utils'
-import { useAuth } from '@/contexts/AuthContext'
+import { useLocation, useNavigate } from 'react-router-dom'
+import type { MouseEvent } from 'react'
+import { cn }          from '@/lib/utils'
+import { useAuth }     from '@/contexts/AuthContext'
+import { useTabReset } from '@/contexts/TabResetContext'
 
 // ── SVG Icon set ──────────────────────────────────────────────────
 interface IconProps { className?: string }
@@ -50,7 +52,6 @@ function IconAnalytics({ className }: IconProps) {
     </svg>
   )
 }
-// ADD this icon function alongside the others:
 function IconAccounts({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none"
@@ -73,8 +74,6 @@ function IconSignOut({ className }: IconProps) {
 }
 
 // ── Tab definitions ───────────────────────────────────────────────
-// label     = shown in the desktop sidebar (full word)
-// shortLabel = shown in the mobile bottom bar (fits the narrow tab)
 const TABS = [
   { path: '/home',         label: 'Home',          shortLabel: 'Home',   Icon: IconHome         },
   { path: '/transactions', label: 'Transactions',  shortLabel: 'Txns',   Icon: IconTransactions },
@@ -91,13 +90,27 @@ interface AppNavProps {
 
 export function AppNav({ variant }: AppNavProps) {
   const { profile, signOut } = useAuth()
+  const { resetTab }         = useTabReset()
+  const location             = useLocation()
+  const navigate             = useNavigate()
+
+  const handleNavClick = (path: string, e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault()
+    if (location.pathname === path) {
+      // User is already on this page -> Reset it
+      resetTab(path)
+    } else {
+      // Normal navigation -> Change route (preserves existing state due to TabKeepAliveLayout)
+      navigate(path)
+    }
+  }
 
   // ════════════════════════════════════════════════════════
   // DESKTOP SIDEBAR
   // ════════════════════════════════════════════════════════
   if (variant === 'sidebar') {
     return (
-      <aside className="hidden md:flex flex-col w-[220px] flex-none bg-card border-r border-line h-full">
+      <aside className="hidden md:flex flex-col w-[220px] flex-none bg-card border-r border-line h-full relative z-30">
 
         {/* Brand */}
         <div
@@ -105,10 +118,8 @@ export function AppNav({ variant }: AppNavProps) {
           style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)', paddingBottom: '20px' }}
         >
           <span className="text-xl leading-none">
-
-
-        {/* LOGO DESIGN */}
-        <svg
+            {/* LOGO DESIGN */}
+            <svg
               width={36}
               height={36}
               viewBox="26 28 148 148"
@@ -116,42 +127,40 @@ export function AppNav({ variant }: AppNavProps) {
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
-            <linearGradient id="mGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#00E5FF" />   <stop offset="100%" stop-color="#FFFFFF" /> </linearGradient>
-            <linearGradient id="glowFilter" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.12" />
-              <stop offset="100%" stop-color="#00E5FF" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-          <path d="M 68 145 Q 100 102 132 145 Z" fill="url(#glowFilter)" />
-          <path 
-            d="M58 145 
-               C58 115, 62 85, 76 85 
-               C90 85, 93 118, 100 118 
-               C107 118, 124 60, 140 60 
-               C146 60, 144 105, 144 145" 
-            fill="none" 
-            stroke="#00E5FF" 
-            stroke-width="16" stroke-linecap="round" 
-            stroke-linejoin="round" 
-          />
-          <path 
-            d="M58 145 
-               C58 115, 62 85, 76 85 
-               C90 85, 93 118, 100 118 
-               C107 118, 124 60, 140 60 
-               C146 60, 144 105, 144 145" 
-            fill="none" 
-            stroke="url(#mGradient)" 
-            stroke-width="16" 
-            stroke-linecap="round" 
-            stroke-linejoin="round" 
-          />
-          <circle cx="140" cy="60" r="7.5" fill="none" stroke="#00E5FF" stroke-width="3" />
-          <circle cx="140" cy="60" r="7" fill="none" stroke="url(#mGradient)" stroke-width="4" />
-        </svg>
-
-
+                <linearGradient id="mGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#00E5FF" />   <stop offset="100%" stopColor="#FFFFFF" /> </linearGradient>
+                <linearGradient id="glowFilter" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00E5FF" stopOpacity="0.12" />
+                  <stop offset="100%" stopColor="#00E5FF" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M 68 145 Q 100 102 132 145 Z" fill="url(#glowFilter)" />
+              <path 
+                d="M58 145 
+                   C58 115, 62 85, 76 85 
+                   C90 85, 93 118, 100 118 
+                   C107 118, 124 60, 140 60 
+                   C146 60, 144 105, 144 145" 
+                fill="none" 
+                stroke="#00E5FF" 
+                strokeWidth="16" strokeLinecap="round" 
+                strokeLinejoin="round" 
+              />
+              <path 
+                d="M58 145 
+                   C58 115, 62 85, 76 85 
+                   C90 85, 93 118, 100 118 
+                   C107 118, 124 60, 140 60 
+                   C146 60, 144 105, 144 145" 
+                fill="none" 
+                stroke="url(#mGradient)" 
+                strokeWidth="16" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+              />
+              <circle cx="140" cy="60" r="7.5" fill="none" stroke="#00E5FF" strokeWidth="3" />
+              <circle cx="140" cy="60" r="7" fill="none" stroke="url(#mGradient)" strokeWidth="4" />
+            </svg>
           </span>
           <div>
             <p className="font-sora text-sm font-bold text-white leading-none">Money Manager</p>
@@ -161,25 +170,25 @@ export function AppNav({ variant }: AppNavProps) {
 
         {/* Nav items */}
         <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 flex flex-col gap-1">
-          {TABS.map(({ path, label, Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              className={({ isActive }) => cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl font-dm text-sm transition-all duration-150',
-                isActive
-                  ? 'bg-green/10 text-green font-medium border border-green/20'
-                  : 'text-soft hover:bg-panel hover:text-white border border-transparent',
-              )}
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon className={cn('h-[18px] w-[18px] flex-none transition-colors', isActive ? 'text-green' : 'text-soft')} />
-                  <span className="truncate">{label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+          {TABS.map(({ path, label, Icon }) => {
+            const isActive = location.pathname === path
+            return (
+              <a
+                key={path}
+                href={path}
+                onClick={(e) => handleNavClick(path, e)}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl font-dm text-sm transition-all duration-150 cursor-pointer',
+                  isActive
+                    ? 'bg-green/10 text-green font-medium border border-green/20'
+                    : 'text-soft hover:bg-panel hover:text-white border border-transparent',
+                )}
+              >
+                <Icon className={cn('h-[18px] w-[18px] flex-none transition-colors', isActive ? 'text-green' : 'text-soft')} />
+                <span className="truncate">{label}</span>
+              </a>
+            )
+          })}
         </nav>
 
         {/* User + sign out */}
@@ -210,37 +219,35 @@ export function AppNav({ variant }: AppNavProps) {
 
   // ════════════════════════════════════════════════════════
   // MOBILE BOTTOM BAR
-  // Rendered as a flex sibling (NOT fixed). It reserves its own
-  // height in the layout, so page content can never slide under it.
   // ════════════════════════════════════════════════════════
   return (
     <nav
-      className="md:hidden flex-none bg-card border-t border-line"
+      className="md:hidden flex-none bg-card border-t border-line relative z-30"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex h-12">
-        {TABS.map(({ path, shortLabel, Icon }) => (
-          <NavLink
-            key={path}
-            to={path}
-            className={({ isActive }) => cn(
-              'flex-1 flex flex-col items-center justify-center gap-0.5 relative transition-colors duration-150 touch-manipulation',
-              isActive ? 'text-green' : 'text-muted',
-            )}
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <span className="absolute top-0 inset-x-2 h-0.5 rounded-full bg-green animate-fade-in" />
-                )}
-                <Icon className={cn('h-5 w-5 transition-colors', isActive ? 'text-green' : 'text-muted')} />
-                <span className={cn('font-dm text-[10px] font-medium leading-none', isActive ? 'text-green' : 'text-muted')}>
-                  {shortLabel}
-                </span>
-              </>
-            )}
-          </NavLink>
-        ))}
+        {TABS.map(({ path, shortLabel, Icon }) => {
+          const isActive = location.pathname === path
+          return (
+            <a
+              key={path}
+              href={path}
+              onClick={(e) => handleNavClick(path, e)}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center gap-0.5 relative transition-colors duration-150 touch-manipulation cursor-pointer',
+                isActive ? 'text-green' : 'text-muted',
+              )}
+            >
+              {isActive && (
+                <span className="absolute top-0 inset-x-2 h-0.5 rounded-full bg-green animate-fade-in" />
+              )}
+              <Icon className={cn('h-5 w-5 transition-colors', isActive ? 'text-green' : 'text-muted')} />
+              <span className={cn('font-dm text-[10px] font-medium leading-none', isActive ? 'text-green' : 'text-muted')}>
+                {shortLabel}
+              </span>
+            </a>
+          )
+        })}
       </div>
     </nav>
   )

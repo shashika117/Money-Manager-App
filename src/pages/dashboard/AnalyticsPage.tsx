@@ -138,7 +138,7 @@ export default function AnalyticsPage() {
   const activeMonth = colMonth ?? (isRange ? null : months[0])
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
       {/* ══ HEADER ══ */}
       <div className="flex-none border-b border-line bg-card px-4 pb-3"

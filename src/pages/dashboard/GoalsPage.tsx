@@ -56,7 +56,7 @@ export default function GoalsPage() {
   function openEdit(goal: EnrichedGoal) { setFormGoal(goal); setFormOpen(true) }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
       {/* ── Header (sticky, non-scrolling) ── */}
       <div className="flex-none flex items-center justify-between border-b border-line bg-card px-4 pb-3"

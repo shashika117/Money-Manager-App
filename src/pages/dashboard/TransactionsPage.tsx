@@ -299,7 +299,7 @@ function handleOpenPicker() {
       to visually "drop" on mount. Fade-only avoids any transform here.
     */
     <div className={cn(
-      'flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-y-auto animate-fade-in',
+      'flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-y-auto',
     )}>
 
       {/* ── HEADER ── */}
