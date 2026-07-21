@@ -94,8 +94,17 @@ export default function AnalyticsPage() {
     setHierarchy(h); resetDrill()
   }
   function changePeriod(m: string[]) {
-    setMonths(m); resetDrill(); setColMonth(null)
-  }
+  // Determine timeline direction (earlier month vs later month)
+  const currentStart = months[0] ?? ''
+  const nextStart = m[0] ?? ''
+  const dir: 'down' | 'back' = nextStart < currentStart ? 'back' : 'down'
+
+  setMonths(m)
+  setColMonth(null)
+  
+  // Bump anim.key to trigger the CSS transition while keeping the drill state intact
+  setAnim(a => ({ key: a.key + 1, dir }))
+}
 
   // Legend-row click (slices are no longer clickable).
   function selectBucket(bucket: string) {

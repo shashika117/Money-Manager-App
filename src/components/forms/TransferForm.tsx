@@ -1,3 +1,6 @@
+// src/components/forms/TransferForm.tsx
+
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,10 +10,8 @@ import { useGoalsEnriched } from '@/hooks/useGoalsEnriched'
 import { useGoalBudgetForMonth } from '@/hooks/useGoalMisc'
 import { fmtAmt } from '@/lib/goalFormat'
 import { useAddTransfer } from '@/hooks/useTransactionMutations'
+import type { EditingTransaction } from '@/components/forms/editTypes'
 
-// Turn the raw RPC error into the spec's user-facing message.
-// The RPC raises: "DUPLICATE_ALLOCATION:Funds have already been allocated
-// to <Goal> for <Mon YYYY>." — we append the guidance sentence.
 function formatTransferError(msg: string | undefined): string {
   const raw = String(msg ?? '')
   if (raw.includes('DUPLICATE_ALLOCATION:')) {
@@ -20,14 +21,22 @@ function formatTransferError(msg: string | undefined): string {
   return raw || 'Transfer failed. Try again.'
 }
 
-interface TransferFormProps {
-  onSuccess: () => void
-  initialDate?: string
-  initialAccount?: string
-  onCancel?:    () => void
+export interface SharedTxnData {
+  date: string
+  account: string
+  amount: string
+  note: string
 }
 
-// ── Zod schema (From Funds removed) ────────────────────────────────
+interface TransferFormProps {
+  sharedData:  SharedTxnData
+  updateSharedData: (data: Partial<SharedTxnData>) => void
+  onSuccess: () => void
+  onCancel?: () => void
+  /** Present when this form instance is editing an existing transaction. */
+  editing?: EditingTransaction
+}
+
 const schema = z
   .object({
     date:         z.string().min(1, 'Date is required'),
@@ -54,10 +63,15 @@ const schema = z
 
 type FormData = z.infer<typeof schema>
 
-export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel }: TransferFormProps) {
+export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel, editing }: TransferFormProps) {
   const { data: accounts = [], isLoading: accLoading } = useAccounts()
   const { goals } = useGoalsEnriched()
   const addTransfer = useAddTransfer()
+
+  const [cleanupError, setCleanupError] = useState<string | null>(null)
+
+  // Only prefill To Account / Fee when this instance matches the original type.
+  const prefill = editing && editing.type === 'Transfer' ? editing.transferGroup : undefined
 
   const {
     register,
@@ -68,33 +82,46 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      date: initialDate ?? todayLocal(),
-      from_account: initialAccount ?? '',
-      to_account:   '',
-      amount:       '',
-      fee:          '',
-      note:         '',
+      date:         sharedData.date,
+      from_account: sharedData.account,
+      to_account:   prefill?.to_account ?? '',
+      amount:       sharedData.amount,
+      fee:          prefill?.fee ? String(prefill.fee) : '',
+      note:         sharedData.note,
     },
   })
+
+  // Watch fields to propagate back to shared state
+  useEffect(() => {
+    const subscription = watch((value) => {
+      updateSharedData({
+        date: value.date || '',
+        account: value.from_account || '',
+        amount: value.amount || '',
+        note: value.note || ''
+      })
+    })
+    return () => subscription.unsubscribe()
+  }, [watch, updateSharedData])
 
   const watchFromAccount = watch('from_account')
   const watchToAccount   = watch('to_account')
   const watchDate        = watch('date')
 
-  // If the destination account is linked to a goal, the backend will
-  // auto-create that goal's Monthly Allocation — surface which goal.
   const linkedGoal = watchToAccount
     ? goals.find(g => g.linked_account === watchToAccount) ?? null
     : null
 
-  // Month-specific budget (goal_budget_data) for the transfer's date-month.
   const monthKey = watchDate ? `${watchDate.slice(0, 7)}-01` : null
   const { data: budgetMap } = useGoalBudgetForMonth(linkedGoal ? monthKey : null)
   const linkedGoalBudget = linkedGoal ? budgetMap?.get(linkedGoal.goal_name) ?? null : null
 
   // ── Submit ────────────────────────────────────────────────────────
   async function onSubmit(data: FormData) {
+    setCleanupError(null)
     try {
+      // Always create the new transfer first — the original (if any) is
+      // only removed after this save succeeds.
       await addTransfer.mutateAsync({
         date:         data.date,
         from_account: data.from_account,
@@ -103,6 +130,18 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
         fee:          data.fee ? parseFloat(data.fee) : 0,
         note:         data.note ?? '',
       })
+
+      if (editing) {
+        try {
+          await editing.deleteOriginal()
+        } catch (cleanupErr) {
+          console.error('Failed to remove original record after edit:', cleanupErr)
+          setCleanupError(
+            'Saved, but the original transaction could not be removed automatically. Please delete it manually from the transaction list to avoid a duplicate.'
+          )
+          return
+        }
+      }
 
       reset({ date: todayLocal() })
       onSuccess()
@@ -201,7 +240,7 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
         )}
       </div>
 
-      {/* ── Linked goal (auto-shown when To account is goal-linked) ── */}
+      {/* ── Linked goal ── */}
       {linkedGoal && (
         <div className="rounded-xl border border-cyan/30 bg-cyan/5 px-4 py-3 animate-fade-in">
           <div className="flex items-center gap-2">
@@ -288,6 +327,13 @@ export function TransferForm({ onSuccess, initialDate, initialAccount, onCancel 
           <p className="font-dm text-sm text-red leading-relaxed">
             {formatTransferError(addTransfer.error?.message)}
           </p>
+        </div>
+      )}
+
+      {/* ── Cleanup warning ── */}
+      {cleanupError && (
+        <div className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3">
+          <p className="font-dm text-sm text-amber leading-relaxed">{cleanupError}</p>
         </div>
       )}
 

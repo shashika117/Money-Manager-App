@@ -1,4 +1,6 @@
-import { useEffect } from 'react'
+// src/components/forms/TransactionForm.tsx
+
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -16,16 +18,30 @@ import {
   useAddExpense,
   useAddIncome,
 } from '@/hooks/useTransactionMutations'
+import {
+  useUpdateTransaction,
+  useUpdateSinkingFundExpense,
+} from '@/hooks/useEditTransaction'
+import type { EditingTransaction } from '@/components/forms/editTypes'
 
 // ── Types ──────────────────────────────────────────────────────────
 type TxnType = 'Expense' | 'Income'
 
+export interface SharedTxnData {
+  date: string
+  account: string
+  amount: string
+  note: string
+}
+
 interface TransactionFormProps {
   initialType: TxnType
-  initialDate?: string    // NEW — pre-fills the date field
-  initialAccount?: string
+  sharedData:  SharedTxnData
+  updateSharedData: (data: Partial<SharedTxnData>) => void
   onSuccess:   () => void
-  onCancel?:    () => void    // ← add this
+  onCancel?:   () => void
+  /** Present when this form instance is editing an existing transaction. */
+  editing?:    EditingTransaction
 }
 
 // ── Zod schema ─────────────────────────────────────────────────────
@@ -47,7 +63,6 @@ const schema = z
   })
   .superRefine((data, ctx) => {
     if (data.type === 'Expense') {
-      // Regular expense: subcategory required
       if (data.category !== 'Sinking Funds' && data.category !== '' && !data.subcategory) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -55,7 +70,6 @@ const schema = z
           path: ['subcategory'],
         })
       }
-      // Sinking Funds: goal_name required
       if (data.category === 'Sinking Funds' && !data.goal_name) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -68,9 +82,8 @@ const schema = z
 
 type FormData = z.infer<typeof schema>
 
-
 // ── Component ──────────────────────────────────────────────────────
-export function TransactionForm({ initialType, initialDate, initialAccount, onSuccess, onCancel }: TransactionFormProps) {
+export function TransactionForm({ initialType, sharedData, updateSharedData, onSuccess, onCancel, editing }: TransactionFormProps) {
   // Data
   const { data: subCats = [],  isLoading: scLoading  } = useSubCategories()
   const { data: accounts = [], isLoading: accLoading } = useAccounts()
@@ -79,8 +92,18 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
   // Mutations
   const addExpense = useAddExpense()
   const addIncome  = useAddIncome()
+  const updateTxn  = useUpdateTransaction()
+  const updateSink = useUpdateSinkingFundExpense()
 
-  const isSubmitting = addExpense.isPending || addIncome.isPending
+  const isSubmitting =
+    addExpense.isPending || addIncome.isPending || updateTxn.isPending || updateSink.isPending
+
+  const [cleanupError, setCleanupError] = useState<string | null>(null)
+
+  // Only prefill type-specific fields when this instance matches the
+  // transaction's ORIGINAL type — if the user switched tabs to a
+  // different type, that form starts blank like a normal Add.
+  const prefillMatch = editing && editing.type === initialType ? editing.transaction : null
 
   // Form
   const {
@@ -93,16 +116,31 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      date:          initialDate ?? todayLocal(), // Changed from todayString()
+      date:           sharedData.date,
       type:           initialType,
-      category:       '',
-      subcategory:    '',
-      goal_name:      '',
-      master_account:  initialAccount ?? '',
-      amount:         '',
-      note:           '',
+      category:       prefillMatch ? prefillMatch.category : '',
+      subcategory:    prefillMatch && !prefillMatch.is_income && !prefillMatch.is_sinking_funds
+                        ? prefillMatch.ex_sub_category
+                        : '',
+      goal_name:      prefillMatch ? (prefillMatch.goal ?? '') : '',
+      master_account: sharedData.account,
+      amount:         sharedData.amount,
+      note:           sharedData.note,
     },
   })
+
+  // Watch fields to propagate back to shared state
+  useEffect(() => {
+    const subscription = watch((value) => {
+      updateSharedData({
+        date: value.date || '',
+        account: value.master_account || '',
+        amount: value.amount || '',
+        note: value.note || ''
+      })
+    })
+    return () => subscription.unsubscribe()
+  }, [watch, updateSharedData])
 
   const watchType          = watch('type')
   const watchCategory      = watch('category')
@@ -110,19 +148,28 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
   const watchGoalName      = watch('goal_name')
   const watchMasterAccount = watch('master_account')
 
-  // When type changes: reset category + subcategory + goal
-   useEffect(() => {
+  // When type changes: reset category + subcategory + goal.
+  // Skip the very first run — it fires on mount too, which would wipe
+  // out the prefilled values above before the user ever sees them.
+const prevType = useRef(watchType)
+useEffect(() => {
+  if (prevType.current !== watchType) {
     setValue('category',    '')
     setValue('subcategory', '')
     setValue('goal_name',   '')
-  }, [watchType, setValue]) 
+  }
+  prevType.current = watchType
+}, [watchType, setValue])
 
-
-  // When category changes: reset subcategory + goal
-  useEffect(() => {
+// When category genuinely changes: reset subcategory + goal. Same guard.
+const prevCategory = useRef(watchCategory)
+useEffect(() => {
+  if (prevCategory.current !== watchCategory) {
     setValue('subcategory', '')
     setValue('goal_name',   '')
-  }, [watchCategory, setValue])
+  }
+  prevCategory.current = watchCategory
+}, [watchCategory, setValue])
 
   // Derived display state
   const isSinkingFunds   = watchType === 'Expense' && watchCategory === 'Sinking Funds'
@@ -130,6 +177,9 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
                            && watchCategory !== ''
                            && watchCategory !== 'Sinking Funds'
   const showGoalSelector = isSinkingFunds
+
+  // True in-place update only when editing AND the type wasn't changed.
+  const isSameTypeEdit = !!editing && editing.type === watchType
 
   // Category options based on type
   const categoryOptions = watchType === 'Expense'
@@ -142,33 +192,79 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
   // ── Submit ────────────────────────────────────────────────────
   async function onSubmit(data: FormData) {
     const amount = parseFloat(data.amount)
+    setCleanupError(null)
 
     try {
-      if (data.type === 'Expense') {
-        await addExpense.mutateAsync({
-          date:            data.date,
-          master_account:  data.master_account,
-          ex_sub_category: isSinkingFunds
-            ? 'Sinking Funds'
-            : data.subcategory!,
-          amount,
-          note:            data.note ?? '',
-          isSinkingFunds,
-          goal_name:       data.goal_name,
-        })
+      if (isSameTypeEdit) {
+        // True in-place update — same type, just update the existing row(s).
+        if (data.type === 'Expense' && isSinkingFunds) {
+          await updateSink.mutateAsync({
+            transaction_id: editing!.transaction.id,
+            date:           data.date,
+            account:        data.master_account,
+            goal_name:      data.goal_name!,
+            amount,
+            note:           data.note,
+          })
+        } else if (data.type === 'Expense') {
+          await updateTxn.mutateAsync({
+            id:              editing!.transaction.id,
+            date:            data.date,
+            master_account:  data.master_account,
+            ex_sub_category: data.subcategory!,
+            singed_amount:   -amount,
+            note:            data.note,
+          })
+        } else {
+          const exSubCat = getIncomeSubCategory(subCats, data.category)
+          await updateTxn.mutateAsync({
+            id:              editing!.transaction.id,
+            date:            data.date,
+            master_account:  data.master_account,
+            ex_sub_category: exSubCat,
+            singed_amount:   amount,
+            note:            data.note,
+          })
+        }
       } else {
-        // Income: ex_sub_category = the Income category name
-        const exSubCat = getIncomeSubCategory(subCats, data.category)
-        await addIncome.mutateAsync({
-          date:            data.date,
-          master_account:  data.master_account,
-          ex_sub_category: exSubCat,
-          amount,
-          note:            data.note ?? '',
-        })
+        // Fresh add — either a brand-new transaction, or an edit where the
+        // type was changed. The original (if any) is removed below, only
+        // after this save succeeds.
+        if (data.type === 'Expense') {
+          await addExpense.mutateAsync({
+            date:            data.date,
+            master_account:  data.master_account,
+            ex_sub_category: isSinkingFunds ? 'Sinking Funds' : data.subcategory!,
+            amount,
+            note:            data.note ?? '',
+            isSinkingFunds,
+            goal_name:       data.goal_name,
+          })
+        } else {
+          const exSubCat = getIncomeSubCategory(subCats, data.category)
+          await addIncome.mutateAsync({
+            date:            data.date,
+            master_account:  data.master_account,
+            ex_sub_category: exSubCat,
+            amount,
+            note:            data.note ?? '',
+          })
+        }
+
+        if (editing) {
+          try {
+            await editing.deleteOriginal()
+          } catch (cleanupErr) {
+            console.error('Failed to remove original record after edit:', cleanupErr)
+            setCleanupError(
+              'Saved, but the original transaction could not be removed automatically. Please delete it manually from the transaction list to avoid a duplicate.'
+            )
+            return
+          }
+        }
       }
 
-      reset({ date: todayLocal(), type: data.type }) // Changed from todayString()
+      reset({ date: todayLocal(), type: data.type })
       onSuccess()
     } catch (err) {
       console.error('Transaction save failed:', err)
@@ -213,8 +309,7 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
         )}
       </div>
 
-      {/* ── Type toggle (hidden — controlled by parent) ── */}
-      {/* type is passed in as initialType and stored in the form */}
+      {/* ── Type toggle (hidden) ── */}
       <input type="hidden" {...register('type')} />
 
       {/* ── Category ── */}
@@ -247,7 +342,7 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
         )}
       </div>
 
-      {/* ── Sub-Category (Expense only, not for Sinking Funds) ── */}
+      {/* ── Sub-Category ── */}
       {showSubcategory && (
         <div className="animate-fade-in"> 
           <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
@@ -281,7 +376,7 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
         </div>
       )}
 
-      {/* ── Goal selector (Sinking Funds expense only) ── */}
+      {/* ── Goal selector ── */}
       {showGoalSelector && (
         <div className="animate-fade-in"> 
           <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
@@ -312,7 +407,6 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
           {errors.goal_name && (
             <p className="mt-1 font-dm text-xs text-red">{errors.goal_name.message}</p>
           )}
-          {/* Contextual reminder */}
           <p className="mt-1.5 font-dm text-xs text-soft">
             This will also deduct from the goal's savings balance.
           </p>
@@ -381,7 +475,6 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
       </div>
 
       {/* ── Note ── */}
-      {/* AFTER — multi-line textarea */}
       <div>
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
          Note <span className="normal-case text-muted">(optional)</span>
@@ -398,11 +491,19 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
       </div>
 
       {/* ── Server error ── */}
-      {(addExpense.isError || addIncome.isError) && (
+      {(addExpense.isError || addIncome.isError || updateTxn.isError || updateSink.isError) && (
         <div className="rounded-xl border border-red/30 bg-red/10 px-4 py-3">
           <p className="font-dm text-sm text-red">
-            {(addExpense.error || addIncome.error)?.message ?? 'Something went wrong. Try again.'}
+            {(addExpense.error || addIncome.error || updateTxn.error || updateSink.error)?.message
+              ?? 'Something went wrong. Try again.'}
           </p>
+        </div>
+      )}
+
+      {/* ── Cleanup warning (type-changed edit: saved, old row not removed) ── */}
+      {cleanupError && (
+        <div className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3">
+          <p className="font-dm text-sm text-amber leading-relaxed">{cleanupError}</p>
         </div>
       )}
 
@@ -420,10 +521,9 @@ export function TransactionForm({ initialType, initialDate, initialAccount, onSu
       >
         {isSubmitting
           ? 'Saving…'
-          : `Save ${watchType}`}
+          : isSameTypeEdit ? `Update ${watchType}` : `Save ${watchType}`}
       </button>
 
-      
       {/* ── Cancel ── */}
       {onCancel && (
         <button

@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+//src\components\layout\TransactionDetailPanel.tsx
+
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/hooks/useTransactions'
 import { useTransferGroup, useLoanPaymentGroup } from '@/hooks/useEditTransaction'
@@ -9,9 +11,8 @@ import {
   useDeleteTransfer,
 } from '@/hooks/useDeleteTransaction'
 import { useDeleteLoanPayment } from '@/hooks/useLoanPaymentMutations'
-import { EditTransactionForm } from '@/components/forms/EditTransactionForm'
-import { EditTransferForm }    from '@/components/forms/EditTransferForm'
-import { EditLoanPaymentForm } from '@/components/forms/EditLoanPaymentForm'
+import { AddTransactionSheet } from '@/components/forms/AddTransactionSheet'
+import type { EditingTransaction } from '@/components/forms/editTypes'
 
 // ── Helpers ────────────────────────────────────────────────────────
 function fmtAmt(amount: number): string {
@@ -74,7 +75,7 @@ function Spinner({ color = 'blue' }: { color?: string }) {
 }
 
 // ── Types ──────────────────────────────────────────────────────────
-type PanelMode = 'detail' | 'confirm_delete' | 'edit_txn' | 'edit_transfer' | 'edit_loan'
+type PanelMode = 'detail' | 'confirm_delete' | 'edit'
 
 interface Props {
   transaction: Transaction | null
@@ -147,26 +148,93 @@ export function TransactionDetailPanel({ transaction, onClose }: Props) {
     || deleteTransfer.isPending
     || deleteLoanPayment.isPending
 
+  // Removes whatever the currently-selected transaction/group is. Used both
+  // by the "Delete Transaction" button and — after a successful save — by
+  // the edit flow when the transaction's Type was changed.
+  const deleteOriginal = useCallback(async () => {
+    if (!transaction) return
+    if (isLoanPayment && transaction.transfer_group_id) {
+      await deleteLoanPayment.mutateAsync(transaction.transfer_group_id)
+    } else if (isAnyTransferRow && transaction.transfer_group_id) {
+      await deleteTransfer.mutateAsync(transaction.transfer_group_id)
+    } else if (transaction.is_sinking_funds) {
+      await deleteSinkingFund.mutateAsync(transaction.id)
+    } else {
+      await deleteRegular.mutateAsync(transaction.id)
+    }
+  }, [transaction, isLoanPayment, isAnyTransferRow, deleteLoanPayment, deleteTransfer, deleteSinkingFund, deleteRegular])
+
+  // Built once the relevant group data (if any) has loaded, so
+  // AddTransactionSheet can prefill and know how to clean up on save.
+  const editingContext: EditingTransaction | null = useMemo(() => {
+    if (!transaction) return null
+    if (isLoanPayment) {
+      if (!loanPaymentGroup) return null
+      return {
+        type: 'Loan',
+        transaction,
+        loanPaymentGroup: {
+          from_account:    loanPaymentGroup.from_account,
+          loan_account:    loanPaymentGroup.loan_account,
+          capital_amount:  loanPaymentGroup.capital_amount,
+          interest_amount: loanPaymentGroup.interest_amount,
+        },
+        deleteOriginal,
+      }
+    }
+    if (isAnyTransferRow) {
+      if (!transferGroup) return null
+      return {
+        type: 'Transfer',
+        transaction,
+        transferGroup: {
+          from_account: transferGroup.from_account,
+          to_account:   transferGroup.to_account,
+          fee:          transferGroup.fee,
+          amount:       transferGroup.amount,
+        },
+        deleteOriginal,
+      }
+    }
+    return {
+      type: transaction.is_income ? 'Income' : 'Expense',
+      transaction,
+      deleteOriginal,
+    }
+  }, [transaction, isLoanPayment, isAnyTransferRow, loanPaymentGroup, transferGroup, deleteOriginal])
+
+  // Don't let Edit open until the group data it needs to prefill has loaded.
+  const canEdit = isLoanPayment
+    ? (!lpLoading && !!loanPaymentGroup)
+    : isAnyTransferRow
+      ? (!tgLoading && !!transferGroup)
+      : true
+
   if (!transaction) return null
 
   // ── Delete handler ───────────────────────────────────────────────
   async function handleDelete() {
     if (!transaction) return
     try {
-      if (isLoanPayment && transaction.transfer_group_id) {
-        await deleteLoanPayment.mutateAsync(transaction.transfer_group_id)
-      } else if (isAnyTransferRow && transaction.transfer_group_id) {
-        await deleteTransfer.mutateAsync(transaction.transfer_group_id)
-      } else if (transaction.is_sinking_funds) {
-        await deleteSinkingFund.mutateAsync(transaction.id)
-      } else {
-        await deleteRegular.mutateAsync(transaction.id)
-      }
+      await deleteOriginal()
       onClose()
     } catch (err) {
       console.error('Delete failed:', err)
     }
   }
+
+  // ── Edit sheet (replaces the old EditTransactionForm/EditTransferForm/
+  //     EditLoanPaymentForm switch) ──────────────────────────────────
+if (mode === 'edit') {
+  return (
+    <AddTransactionSheet
+      isOpen={true}
+      onClose={() => setMode('detail')}   // Cancel / backdrop / X — nothing changed, go back to detail
+      onSaved={onClose}                    // Real save — the viewed transaction was replaced/changed, close the whole panel
+      editing={editingContext}
+    />
+  )
+}
 
   // ── Amount to display in detail view ────────────────────────────
   const detailAmount =
@@ -229,11 +297,7 @@ export function TransactionDetailPanel({ transaction, onClose }: Props) {
 
         <div className="flex items-center justify-between px-5 py-3 border-b border-line flex-none">
           <h2 className="font-sora text-base font-semibold text-white">
-            {mode === 'confirm_delete'
-              ? 'Confirm Delete'
-              : mode === 'edit_txn' || mode === 'edit_transfer' || mode === 'edit_loan'
-                ? 'Edit Transaction'
-                : 'Transaction Details'}
+            {mode === 'confirm_delete' ? 'Confirm Delete' : 'Transaction Details'}
           </h2>
           <button
             onClick={handleBackdropOrX}
@@ -378,10 +442,12 @@ export function TransactionDetailPanel({ transaction, onClose }: Props) {
               {/* ── Actions ── */}
               <div className="mt-6 flex flex-col gap-3">
                 <button
-                  onClick={() => setMode(
-                    isLoanPayment ? 'edit_loan' : isAnyTransferRow ? 'edit_transfer' : 'edit_txn'
+                  onClick={() => setMode('edit')}
+                  disabled={!canEdit}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-xl bg-panel border border-line px-4 py-3.5 font-dm text-sm font-medium text-white transition-colors hover:border-green active:scale-[0.98]',
+                    !canEdit && 'opacity-50 cursor-not-allowed hover:border-line',
                   )}
-                  className="flex w-full items-center gap-3 rounded-xl bg-panel border border-line px-4 py-3.5 font-dm text-sm font-medium text-white transition-colors hover:border-green active:scale-[0.98]"
                 >
                   <span className="text-lg">✏️</span>
                   Edit Transaction
@@ -442,45 +508,6 @@ export function TransactionDetailPanel({ transaction, onClose }: Props) {
                 Cancel
               </button>
             </div>
-          )}
-
-          {/* ═══════════════════ MODE: EDIT TRANSACTION ═══════════════════ */}
-          {mode === 'edit_txn' && (
-            <EditTransactionForm
-              transaction={transaction}
-              onSuccess={onClose}
-              onCancel={() => setMode('detail')}
-            />
-          )}
-
-          {/* ═══════════════════ MODE: EDIT TRANSFER ═══════════════════ */}
-          {mode === 'edit_transfer' && (
-            tgLoading || !transferGroup ? (
-              <div className="flex items-center justify-center py-10">
-                <Spinner color="blue" />
-              </div>
-            ) : (
-              <EditTransferForm
-                transferData={transferGroup}
-                onSuccess={onClose}
-                onCancel={() => setMode('detail')}
-              />
-            )
-          )}
-
-          {/* ═══════════════════ MODE: EDIT LOAN PAYMENT ═══════════════════ */}
-          {mode === 'edit_loan' && (
-            lpLoading || !loanPaymentGroup ? (
-              <div className="flex items-center justify-center py-10">
-                <Spinner color="amber" />
-              </div>
-            ) : (
-              <EditLoanPaymentForm
-                data={loanPaymentGroup}
-                onSuccess={onClose}
-                onCancel={() => setMode('detail')}
-              />
-            )
           )}
 
         </div>

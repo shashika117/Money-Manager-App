@@ -1,15 +1,28 @@
+// src/components/forms/LoanPaymentForm.tsx
+
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn, todayLocal } from '@/lib/utils'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useAddLoanPayment } from '@/hooks/useLoanPaymentMutations'
+import type { EditingTransaction } from '@/components/forms/editTypes'
+
+export interface SharedTxnData {
+  date: string
+  account: string
+  amount: string
+  note: string
+}
 
 interface LoanPaymentFormProps {
-  onSuccess:       () => void
-  initialDate?:    string
-  initialAccount?: string   // pre-fills the paying (from) account
-  onCancel?:       () => void
+  sharedData:  SharedTxnData
+  updateSharedData: (data: Partial<SharedTxnData>) => void
+  onSuccess:   () => void
+  onCancel?:   () => void
+  /** Present when this form instance is editing an existing transaction. */
+  editing?: EditingTransaction
 }
 
 // ── Zod schema ─────────────────────────────────────────────────────
@@ -45,9 +58,14 @@ const schema = z
 type FormData = z.infer<typeof schema>
 
 // ── Component ──────────────────────────────────────────────────────
-export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCancel }: LoanPaymentFormProps) {
+export function LoanPaymentForm({ sharedData, updateSharedData, onSuccess, onCancel, editing }: LoanPaymentFormProps) {
   const { data: accounts = [], isLoading: accLoading } = useAccounts()
   const addLoanPayment = useAddLoanPayment()
+
+  const [cleanupError, setCleanupError] = useState<string | null>(null)
+
+  // Only prefill Loan Account / Interest when this instance matches the original type.
+  const prefill = editing && editing.type === 'Loan' ? editing.loanPaymentGroup : undefined
 
   const {
     register,
@@ -58,14 +76,27 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      date:            initialDate ?? todayLocal(),
-      from_account:    initialAccount ?? '',
-      loan_account:    '',
-      capital_amount:  '',
-      interest_amount: '',
-      note:            '',
+      date:            sharedData.date,
+      from_account:    sharedData.account,
+      loan_account:    prefill?.loan_account ?? '',
+      capital_amount:  sharedData.amount,
+      interest_amount: prefill?.interest_amount ? String(prefill.interest_amount) : '',
+      note:            sharedData.note,
     },
   })
+
+  // Watch fields to propagate back to shared state
+  useEffect(() => {
+    const subscription = watch((value) => {
+      updateSharedData({
+        date: value.date || '',
+        account: value.from_account || '',
+        amount: value.capital_amount || '',
+        note: value.note || ''
+      })
+    })
+    return () => subscription.unsubscribe()
+  }, [watch, updateSharedData])
 
   const watchFromAccount = watch('from_account')
   const watchLoanAccount = watch('loan_account')
@@ -78,7 +109,10 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
 
   // ── Submit ────────────────────────────────────────────────────────
   async function onSubmit(data: FormData) {
+    setCleanupError(null)
     try {
+      // Always create the new loan payment first — the original (if any)
+      // is only removed after this save succeeds.
       await addLoanPayment.mutateAsync({
         date:            data.date,
         from_account:    data.from_account,
@@ -88,14 +122,19 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
         note:            data.note ?? '',
       })
 
-      reset({
-        date:            todayLocal(),
-        from_account:    initialAccount ?? '',
-        loan_account:    '',
-        capital_amount:  '',
-        interest_amount: '',
-        note:            '',
-      })
+      if (editing) {
+        try {
+          await editing.deleteOriginal()
+        } catch (cleanupErr) {
+          console.error('Failed to remove original record after edit:', cleanupErr)
+          setCleanupError(
+            'Saved, but the original transaction could not be removed automatically. Please delete it manually from the transaction list to avoid a duplicate.'
+          )
+          return
+        }
+      }
+
+      reset({ date: todayLocal() })
       onSuccess()
     } catch (err) {
       console.error('Loan payment save failed:', err)
@@ -151,7 +190,7 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
               'font-dm text-sm outline-none transition-colors focus:border-amber',
-              watchFromAccount ? 'text-white' : 'text-muted', // Dynamic text color alignment
+              watchFromAccount ? 'text-white' : 'text-muted', 
               errors.from_account ? 'border-red' : 'border-line',
             )}
           >
@@ -182,7 +221,7 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
             className={cn(
               'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
               'font-dm text-sm outline-none transition-colors focus:border-amber',
-              watchLoanAccount ? 'text-white' : 'text-muted', // Dynamic text color alignment
+              watchLoanAccount ? 'text-white' : 'text-muted', 
               errors.loan_account ? 'border-red' : 'border-line',
             )}
           >
@@ -282,6 +321,13 @@ export function LoanPaymentForm({ onSuccess, initialDate, initialAccount, onCanc
           <p className="font-dm text-sm text-red">
             {addLoanPayment.error?.message ?? 'Loan payment failed. Try again.'}
           </p>
+        </div>
+      )}
+
+      {/* ── Cleanup warning ── */}
+      {cleanupError && (
+        <div className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3">
+          <p className="font-dm text-sm text-amber leading-relaxed">{cleanupError}</p>
         </div>
       )}
 
