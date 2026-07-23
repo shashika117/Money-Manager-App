@@ -1,7 +1,8 @@
 // src/components/forms/LoanPaymentForm.tsx
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
+import { AccountSelect } from '@/components/forms/AccountSelect'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn, todayLocal } from '@/lib/utils'
@@ -71,6 +72,7 @@ export function LoanPaymentForm({ sharedData, updateSharedData, onSuccess, onCan
     register,
     handleSubmit,
     watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<FormData>({
@@ -184,27 +186,21 @@ export function LoanPaymentForm({ sharedData, updateSharedData, onSuccess, onCan
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
           From Account
         </label>
-        <div className="relative">
-          <select
-            {...register('from_account')}
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm outline-none transition-colors focus:border-amber',
-              watchFromAccount ? 'text-white' : 'text-muted', 
-              errors.from_account ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-muted bg-panel">Select paying account…</option>
-            {accounts
-              .filter(acc => acc.master_account !== watchLoanAccount)
-              .map(acc => (
-                <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
-                  {acc.master_account}
-                </option>
-              ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-        </div>
+        <Controller
+          name="from_account"
+          control={control}
+          render={({ field }) => (
+            <AccountSelect
+              accounts={accounts}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Select paying account…"
+              excludeAccount={watchLoanAccount}
+              error={!!errors.from_account}
+              focusColorClass="focus:border-amber"
+            />
+          )}
+        />
         {errors.from_account && (
           <p className="mt-1 font-dm text-xs text-red">{errors.from_account.message}</p>
         )}
@@ -215,27 +211,21 @@ export function LoanPaymentForm({ sharedData, updateSharedData, onSuccess, onCan
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
           Loan Account
         </label>
-        <div className="relative">
-          <select
-            {...register('loan_account')}
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm outline-none transition-colors focus:border-amber',
-              watchLoanAccount ? 'text-white' : 'text-muted', 
-              errors.loan_account ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-muted bg-panel">Select loan account…</option>
-            {accounts
-              .filter(acc => acc.master_account !== watchFromAccount)
-              .map(acc => (
-                <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
-                  {acc.master_account}
-                </option>
-              ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-        </div>
+        <Controller
+          name="loan_account"
+          control={control}
+          render={({ field }) => (
+            <AccountSelect
+              accounts={accounts}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Select loan account…"
+              excludeAccount={watchFromAccount}
+              error={!!errors.loan_account}
+              focusColorClass="focus:border-amber"
+            />
+          )}
+        />
         {errors.loan_account && (
           <p className="mt-1 font-dm text-xs text-red">{errors.loan_account.message}</p>
         )}

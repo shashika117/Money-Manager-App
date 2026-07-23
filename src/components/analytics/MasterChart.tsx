@@ -39,6 +39,7 @@ interface Props {
   hierarchy:    Hierarchy
   view:         DonutView
   focus:        Focus
+  selection:    Focus | null
   scope:        string
   scopeKeyName: string | null
   colMonth:     string | null
@@ -175,7 +176,7 @@ function AreaTip({ active, payload, label }: any) {
 // COLUMN — month range
 // ════════════════════════════════════════════════════════════════════
 function ColumnView({
-  tab, months, bounds, view, focus, colMonth, onToggleMonth,
+  tab, months, bounds, view, focus, colMonth, onToggleMonth, selection,
 }: Props) {
   const { data: rows = [], isLoading, isError } = useAnalyticsBreakdown({
     tab, start: bounds.start, endExclusive: bounds.endExclusive, view,
@@ -185,7 +186,19 @@ function ColumnView({
     () => enumerateMonths(months[0], months[months.length - 1]),
     [months],
   )
-  const { buckets, data, otherKey } = useMemo(() => toColumns(rows, monthKeys, 6), [rows, monthKeys])
+
+  // A terminal selection (a subcategory, or — on Earning — a category)
+  // collapses the column chart to just that one bucket's bar per month,
+  // mirroring the donut's single-slice collapse. `view` still reflects
+  // the parent drill level (it's what fetched `rows` above), so we filter
+  // the already-fetched rows rather than re-querying.
+  const selectedBucket = selection && selection.kind !== 'total' ? selection.name : null
+  const scopedRows = useMemo(
+    () => (selectedBucket ? rows.filter(r => r.bucket === selectedBucket) : rows),
+    [rows, selectedBucket],
+  )
+
+  const { buckets, data, otherKey } = useMemo(() => toColumns(scopedRows, monthKeys, 6), [scopedRows, monthKeys])
 
   // The synthetic spill bucket is always muted grey; every real bucket
   // (including a genuine category literally named "Other") keeps its own

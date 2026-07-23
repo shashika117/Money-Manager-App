@@ -215,7 +215,7 @@ export function TransactionTable({
   }
 
   return (
-    <div className="pb-4 animate-fade-in-scale">
+    <div className="pb-4 animate-none">
       {groups.map(group => (
         <div key={group.date}>
           <DateGroupHeader

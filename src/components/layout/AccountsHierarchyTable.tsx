@@ -1,19 +1,11 @@
-/**
- * AccountsHierarchyTable — three isolated card sections:
- *  1. Net Worth card
- *  2. Assets card  (collapsible groups + categories)
- *  3. Liability card (collapsible groups + categories)
- *
- * All labels sit on the same left vertical line (px-4 throughout).
- * Visual hierarchy is expressed only through typography, not indent.
- *
- * Category rows: semi-transparent background, muted text
- * Account rows:  subtle dark fill, white text, green left-border when selected
- */
+//src\components\layout\AccountsHierarchyTable.tsx
 
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { AccountBalance } from '@/hooks/useAccountBalances'
+import { useAuth } from '@/contexts/AuthContext'
+import { useHouseholdProfiles } from '@/hooks/useHouseholdProfiles'
+import { bucketOf, type OwnerBucket } from '@/lib/accountOwnership'
 
 // ── Helpers ───────────────────────────────────────────────────────
 function fmtAmt(n: number): string {
@@ -61,6 +53,45 @@ export function AccountsHierarchyTable({
   rows, netWorth, selectedAccount, onSelectAccount, isLoading,
 }: Props) {
   const groups = useMemo(() => buildHierarchy(rows), [rows])
+  const { user } = useAuth()
+  const myId = user?.id ?? null
+  const { data: profiles = [] } = useHouseholdProfiles()
+  const spouseName = profiles.find(p => p.id !== myId)?.display_name ?? 'Partner'
+
+  // Which owner buckets show among account rows. "Mine" is always shown;
+  // Common and the spouse's accounts are opt-in via the chips below, so a
+  // two-person household isn't scrolling every account by default.
+  const [visibleBuckets, setVisibleBuckets] = useState<Set<OwnerBucket>>(
+    () => new Set<OwnerBucket>(['mine', 'common'])
+  )
+  function toggleBucket(b: OwnerBucket) {
+    setVisibleBuckets(prev => {
+      const next = new Set(prev)
+      next.has(b) ? next.delete(b) : next.add(b)
+      return next
+    })
+  }
+
+
+  function FilterChip({ label, active, onClick }: {
+  label: string; active: boolean; onClick: () => void
+  }) {
+    return (
+      <button
+       type="button"
+        onClick={onClick}
+        className={cn(
+          'rounded-full border px-3 py-1 font-dm text-[11px] font-medium transition-colors touch-manipulation',
+          active
+            ? 'border-green/40 bg-green/10 text-green'
+            : 'border-line bg-panel text-soft hover:text-white',
+        )}
+      >
+        {label}
+      </button>
+    )
+  }
+
 
   // Collapse state: Set<groupName> and Set<"group|cat">
   const [collG, setCollG] = useState<Set<string>>(new Set())
@@ -88,6 +119,13 @@ export function AccountsHierarchyTable({
         <span className={cn('font-sora text-2xl font-bold', amtCls(netWorth))}>
           {fmtAmt(netWorth)}
         </span>
+      </div>
+
+
+      {/* ══ ACCOUNT VISIBILITY FILTERS ══════════════════════════ */}
+      <div className="flex items-center gap-2 px-1">
+        <FilterChip label="Common" active={visibleBuckets.has('common')} onClick={() => toggleBucket('common')} />
+        <FilterChip label={`${spouseName}'s`} active={visibleBuckets.has('spouse')} onClick={() => toggleBucket('spouse')} />
       </div>
 
       {/* ══ SECTIONS 2 & 3: ASSETS + LIABILITY ══════════════════ */}
@@ -136,7 +174,9 @@ export function AccountsHierarchyTable({
                   </button>
 
                   {/* Account rows */}
-                  {!cCol && cat.accounts.map((acc, ai) => {
+                  {!cCol && cat.accounts
+                    .filter(acc => visibleBuckets.has(bucketOf(acc.owner_id, myId)))
+                    .map((acc, ai) => {
                     const isSel = selectedAccount === acc.master_account
                     return (
                       <button

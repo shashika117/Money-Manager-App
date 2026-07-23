@@ -1,10 +1,12 @@
 // src/components/forms/TransactionForm.tsx
 
 import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn, todayLocal } from '@/lib/utils'
+import { AccountSelect } from '@/components/forms/AccountSelect'
+import { Select } from '@/components/forms/Select'
 import {
   useSubCategories,
   getExpenseCategories,
@@ -111,6 +113,7 @@ export function TransactionForm({ initialType, sharedData, updateSharedData, onS
     handleSubmit,
     watch,
     setValue,
+    control,
     reset,
     formState: { errors },
   } = useForm<FormData>({
@@ -144,9 +147,6 @@ export function TransactionForm({ initialType, sharedData, updateSharedData, onS
 
   const watchType          = watch('type')
   const watchCategory      = watch('category')
-  const watchSubcategory   = watch('subcategory')
-  const watchGoalName      = watch('goal_name')
-  const watchMasterAccount = watch('master_account')
 
   // When type changes: reset category + subcategory + goal.
   // Skip the very first run — it fires on mount too, which would wipe
@@ -317,26 +317,20 @@ useEffect(() => {
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
           Category
         </label>
-        <div className="relative">
-          <select
-            {...register('category')}
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm outline-none transition-colors',
-              !watchCategory ? 'text-soft' : 'text-white',
-              'focus:border-green',
-              errors.category ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-soft bg-panel">Select category…</option>
-            {categoryOptions.map(cat => (
-              <option key={cat} value={cat} className="text-white bg-panel">{cat}</option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">
-            ▼
-          </span>
-        </div>
+        <Controller
+          name="category"
+          control={control}
+          render={({ field }) => (
+            <Select
+              options={categoryOptions.map(cat => ({ value: cat, label: cat }))}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Select category…"
+              error={!!errors.category}
+              focusColorClass="focus:border-green"
+            />
+          )}
+        />
         {errors.category && (
           <p className="mt-1 font-dm text-xs text-red">{errors.category.message}</p>
         )}
@@ -348,28 +342,20 @@ useEffect(() => {
           <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
             Sub-Category
           </label>
-          <div className="relative">
-            <select
-              {...register('subcategory')}
-              className={cn(
-                'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-                'font-dm text-sm outline-none transition-colors',
-                !watchSubcategory ? 'text-soft' : 'text-white',
-                'focus:border-green',
-                errors.subcategory ? 'border-red' : 'border-line',
-              )}
-            >
-              <option value="" disabled className="text-soft bg-panel">Select sub-category…</option>
-              {subcategoryOptions.map(sc => (
-                <option key={sc.id} value={sc.ex_sub_category} className="text-white bg-panel">
-                  {sc.ex_sub_category}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">
-              ▼
-            </span>
-          </div>
+          <Controller
+            name="subcategory"
+            control={control}
+            render={({ field }) => (
+              <Select
+                options={subcategoryOptions.map(sc => ({ value: sc.ex_sub_category, label: sc.ex_sub_category }))}
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Select sub-category…"
+                error={!!errors.subcategory}
+                focusColorClass="focus:border-green"
+              />
+            )}
+          />
           {errors.subcategory && (
             <p className="mt-1 font-dm text-xs text-red">{errors.subcategory.message}</p>
           )}
@@ -382,28 +368,20 @@ useEffect(() => {
           <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
             Spend from Goal
           </label>
-          <div className="relative">
-            <select
-              {...register('goal_name')}
-              className={cn(
-                'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-                'font-dm text-sm outline-none transition-colors',
-                !watchGoalName ? 'text-soft' : 'text-white',
-                'focus:border-amber',
-                errors.goal_name ? 'border-red' : 'border-line',
-              )}
-            >
-              <option value="" disabled className="text-soft bg-panel">Which goal are you spending from?</option>
-              {goals.map(g => (
-                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
-                  {g.goal_name}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">
-              ▼
-            </span>
-          </div>
+          <Controller
+            name="goal_name"
+            control={control}
+            render={({ field }) => (
+              <Select
+                options={goals.map(g => ({ value: g.goal_name, label: g.goal_name }))}
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Which goal are you spending from?"
+                error={!!errors.goal_name}
+                focusColorClass="focus:border-amber"
+              />
+            )}
+          />
           {errors.goal_name && (
             <p className="mt-1 font-dm text-xs text-red">{errors.goal_name.message}</p>
           )}
@@ -418,28 +396,20 @@ useEffect(() => {
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
           Account
         </label>
-        <div className="relative">
-          <select
-            {...register('master_account')}
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm outline-none transition-colors',
-              !watchMasterAccount ? 'text-soft' : 'text-white',
-              'focus:border-green',
-              errors.master_account ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-soft bg-panel">Select account…</option>
-            {accounts.map(acc => (
-              <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
-                {acc.master_account}
-              </option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">
-            ▼
-          </span>
-        </div>
+        <Controller
+          name="master_account"
+          control={control}
+          render={({ field }) => (
+            <AccountSelect
+              accounts={accounts}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Select account…"
+              error={!!errors.master_account}
+              focusColorClass="focus:border-green"
+            />
+          )}
+        />
         {errors.master_account && (
           <p className="mt-1 font-dm text-xs text-red">{errors.master_account.message}</p>
         )}

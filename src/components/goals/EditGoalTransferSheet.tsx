@@ -1,12 +1,9 @@
 // src/components/goals/EditGoalTransferSheet.tsx
-//
-// Edit or delete a goal→goal "Funds Transfer". The user taps either leg
-// (both share transfer_group_id); we reconstruct the pair from the
-// activity cache and edit via update_goal_transfer (which re-validates
-// the from-goal balance, excluding this transfer's own rows).
+
 
 import { useState, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
+import { Select } from '@/components/forms/Select'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn } from '@/lib/utils'
@@ -59,7 +56,7 @@ export function EditGoalTransferSheet({ record, onClose }: Props) {
     }
   }, [activity, record])
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       date: pair.date, from_goal: pair.from_goal, to_goal: pair.to_goal,
@@ -126,28 +123,41 @@ export function EditGoalTransferSheet({ record, onClose }: Props) {
 
               <div>
                 <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">From goal</label>
-                <div className="relative">
-                  <select {...register('from_goal')}
-                    className={cn('w-full appearance-none pr-10 rounded-xl border bg-panel px-4 py-3 font-dm text-sm text-white outline-none focus:border-cyan',
-                      errors.from_goal ? 'border-red' : 'border-line')}>
-                    {activeGoals.map(g => <option key={g.id} value={g.goal_name}>{g.goal_name}</option>)}
-                  </select>
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-                </div>
+                <Controller
+                  name="from_goal"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      options={activeGoals.map(g => ({ value: g.goal_name, label: g.goal_name }))}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select source goal…"
+                      error={!!errors.from_goal}
+                      focusColorClass="focus:border-cyan"
+                    />
+                  )}
+                />
                 {errors.from_goal && <p className="mt-1 font-dm text-xs text-red">{errors.from_goal.message}</p>}
               </div>
 
               <div>
                 <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">To goal</label>
-                <div className="relative">
-                  <select {...register('to_goal')}
-                    className={cn('w-full appearance-none pr-10 rounded-xl border bg-panel px-4 py-3 font-dm text-sm text-white outline-none focus:border-cyan',
-                      errors.to_goal ? 'border-red' : 'border-line')}>
-                    {activeGoals.filter(g => g.goal_name !== watchFrom).map(g =>
-                      <option key={g.id} value={g.goal_name}>{g.goal_name}</option>)}
-                  </select>
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-                </div>
+                <Controller
+                  name="to_goal"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      options={activeGoals
+                        .filter(g => g.goal_name !== watchFrom)
+                        .map(g => ({ value: g.goal_name, label: g.goal_name }))}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select destination goal…"
+                      error={!!errors.to_goal}
+                      focusColorClass="focus:border-cyan"
+                    />
+                  )}
+                />
                 {errors.to_goal && <p className="mt-1 font-dm text-xs text-red">{errors.to_goal.message}</p>}
               </div>
 

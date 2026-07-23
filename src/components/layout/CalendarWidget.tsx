@@ -336,7 +336,7 @@ export function CalendarWidget({
   const today                = todayLocal()
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  const gridAnimClass = nav.direction === 'left' ? 'animate-slide-from-left' : 'animate-slide-from-right'
+  const gridAnimClass = nav.direction === 'left' ? 'animate-none' : 'animate-slide-from-right'
   const [mn, ys]      = nav.monthName ? [nav.monthName, nav.yearStr] : ['', '']
 
   return (

@@ -1,3 +1,5 @@
+//src\pages\dashboard\AccountsPage.tsx
+
 import { useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { useAccountBalances }       from '@/hooks/useAccountBalances'

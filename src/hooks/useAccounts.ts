@@ -1,3 +1,5 @@
+//src\hooks\useAccounts.ts
+
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
@@ -7,6 +9,7 @@ export interface Account {
   account_category: string
   account_group:    'Assets' | 'Liability'
   sort_order:       number
+  owner_id:         string | null
 }
 
 export function useAccounts() {
@@ -15,7 +18,7 @@ export function useAccounts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dim_account')
-        .select('id, master_account, account_category, account_group, sort_order')
+        .select('id, master_account, account_category, account_group, sort_order, owner_id')
         .eq('is_active', true)
         .order('sort_order', { ascending: true })
         .order('master_account', { ascending: true })

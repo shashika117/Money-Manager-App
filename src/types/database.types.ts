@@ -94,6 +94,7 @@ export type Database = {
           is_active: boolean
           master_account: string
           opening_balance: number
+          owner_id: string | null
           sort_order: number
         }
         Insert: {
@@ -104,6 +105,7 @@ export type Database = {
           is_active?: boolean
           master_account: string
           opening_balance?: number
+          owner_id?: string | null
           sort_order?: number
         }
         Update: {
@@ -114,6 +116,7 @@ export type Database = {
           is_active?: boolean
           master_account?: string
           opening_balance?: number
+          owner_id?: string | null
           sort_order?: number
         }
         Relationships: []
@@ -467,6 +470,7 @@ export type Database = {
           current_balance: number | null
           master_account: string | null
           opening_balance: number | null
+          owner_id: string | null
           sort_order: number | null
           txn_total: number | null
         }
@@ -476,6 +480,7 @@ export type Database = {
           current_balance?: number | null
           master_account?: string | null
           opening_balance?: number | null
+          owner_id?: string | null
           sort_order?: number | null
           txn_total?: never
         }
@@ -485,6 +490,7 @@ export type Database = {
           current_balance?: number | null
           master_account?: string | null
           opening_balance?: number | null
+          owner_id?: string | null
           sort_order?: number | null
           txn_total?: never
         }

@@ -1,3 +1,5 @@
+//src\components\layout\AppNav.tsx
+
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { MouseEvent } from 'react'
 import { cn }          from '@/lib/utils'

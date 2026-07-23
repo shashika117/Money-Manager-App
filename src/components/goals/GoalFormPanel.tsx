@@ -1,17 +1,9 @@
 // src/components/goals/GoalFormPanel.tsx
-//
-// Create OR edit a goal. Right-side panel on laptop, bottom sheet on
-// mobile (same responsive shell as TransactionDetailPanel).
-//
-// Fields: goal name, start date (create only), target amount, target
-// date, is_active toggle, template_budget, linked account.
-//
-// Two save-guards (checked against the useGoalsEnriched cache, no query):
-//   1. goal name unique          → "The [name] already exists"
-//   2. account not already linked → "The [account] is already linked to [goal]"
+
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
+import { AccountSelect } from '@/components/forms/AccountSelect'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn, todayLocal } from '@/lib/utils'
@@ -52,7 +44,7 @@ export function GoalFormPanel({ goal, onClose }: Props) {
   const isSaving = createGoal.isPending || updateGoal.isPending
 
   const {
-    register, handleSubmit, watch, setValue, formState: { errors },
+    register, handleSubmit, watch, setValue, control, formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -67,7 +59,6 @@ export function GoalFormPanel({ goal, onClose }: Props) {
   })
 
   const watchActive = watch('is_active')
-  const watchAccount = watch('linked_account')
 
   function handleClose() {
     setIsClosing(true)
@@ -232,28 +223,24 @@ export function GoalFormPanel({ goal, onClose }: Props) {
           </Field>
 
           <Field label="Account link" hint="optional — 1 account per goal">
-            <div className="relative">
-              <select 
-                {...register('linked_account')} 
-                className={cn(
-                  'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
-                  'font-dm text-sm outline-none transition-colors focus:border-cyan',
-                  watchAccount ? 'text-white' : 'text-muted',
-                  errors.linked_account ? 'border-red' : 'border-line',
-                )}
-              >
-                <option value="" className="text-muted bg-panel">No linked account</option>
-                {accounts.map(a => {
-                  const takenByOther = linkedElsewhere.has(a.master_account)
-                  return (
-                    <option key={a.id} value={a.master_account} disabled={takenByOther} className={cn(takenByOther ? 'text-muted' : 'text-white', 'bg-panel')}>
-                      {a.master_account}{takenByOther ? ' — linked elsewhere' : ''}
-                    </option>
-                  )
-                })}
-              </select>
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-            </div>
+            <Controller
+              name="linked_account"
+              control={control}
+              render={({ field }) => (
+                <AccountSelect
+                  accounts={accounts}
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="No linked account"
+                  allowNone
+                  noneLabel="No linked account"
+                  disabledAccounts={linkedElsewhere}
+                  disabledSuffix=" — linked elsewhere"
+                  error={!!errors.linked_account}
+                  focusColorClass="focus:border-cyan"
+                />
+              )}
+            />
           </Field>
 
           {guardError && (

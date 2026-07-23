@@ -1,17 +1,9 @@
 // src/components/goals/GoalAllocationPanel.tsx
-//
-// The cyan FAB's two-tab window:
-//   Tab 1 "Goal Fund Allocation Manager" — allocate money to a goal for
-//         a month, with the once-per-month override flow and the
-//         "add another?" continuation. Supports positive, negative, or zero allocations.
-//   Tab 2 "Funds Share Manager" — transfer funds goal → goal, with the
-//         from-goal balance-sufficiency check. Supports positive or zero transfers.
-//
-// Opened by the FAB, or by tapping a month-section header (which passes
-// initialMonth / initialDate + an initialTab).
+
 
 import { useState, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
+import { Select } from '@/components/forms/Select'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn, todayLocal } from '@/lib/utils'
@@ -130,7 +122,7 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
   const [addAnother, setAddAnother] = useState(false)
 
   const {
-    register, handleSubmit, watch, reset, formState: { errors },
+    register, handleSubmit, watch, control, reset, formState: { errors },
   } = useForm<AllocForm>({
     resolver: zodResolver(allocSchema),
     defaultValues: {
@@ -215,29 +207,25 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
       <MonthAllocationSummary month={`${watchMonth}-01`} />
 
       <Field label="Goal" error={errors.goal?.message}>
-        <div className="relative">
-          <select 
-            {...register('goal')} 
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
-              'font-dm text-sm outline-none transition-colors focus:border-cyan',
-              watchGoal ? 'text-white' : 'text-muted',
-              errors.goal ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-muted bg-panel">Select a goal…</option>
-            {selectableGoals.map(g => {
-              const b = budgetMap?.get(g.goal_name)
-              const budget = b != null ? `   —   Budget ${fmtAmt(b)}` : ''
-              return (
-                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
-                  {g.goal_name}{budget}
-                </option>
-              )
-            })}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-        </div>
+        <Controller
+          name="goal"
+          control={control}
+          render={({ field }) => (
+            <Select
+              options={selectableGoals.map(g => {
+                const b = budgetMap?.get(g.goal_name)
+                const budget = b != null ? `   —   Budget ${fmtAmt(b)}` : ''
+                return { value: g.goal_name, label: `${g.goal_name}${budget}` }
+              })}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Select a goal…"
+              error={!!errors.goal}
+              focusColorClass="focus:border-cyan"
+              emptyLabel="No goals available."
+            />
+          )}
+        />
         {(() => {
           const b = watchGoal ? budgetMap?.get(watchGoal) : undefined
           if (b != null) {
@@ -394,7 +382,7 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
   const createTransfer = useCreateGoalTransfer()
 
   const {
-    register, handleSubmit, watch, formState: { errors },
+    register, handleSubmit, watch, control, formState: { errors },
   } = useForm<ShareForm>({
     resolver: zodResolver(shareSchema),
     defaultValues: { date: initialDate ?? todayLocal(), from_goal: '', to_goal: '', amount: '', note: '' },
@@ -429,27 +417,22 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
       </Field>
 
       <Field label="From goal" error={errors.from_goal?.message}>
-        <div className="relative">
-          <select 
-            {...register('from_goal')} 
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
-              'font-dm text-sm outline-none transition-colors focus:border-cyan',
-              watchFrom ? 'text-white' : 'text-muted',
-              errors.from_goal ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-muted bg-panel">Move funds from…</option>
-            {activeGoals
-              .filter(g => g.goal_name !== watchTo)
-              .map(g => (
-                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
-                  {g.goal_name}
-                </option>
-              ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-        </div>
+        <Controller
+          name="from_goal"
+          control={control}
+          render={({ field }) => (
+            <Select
+              options={activeGoals
+                .filter(g => g.goal_name !== watchTo)
+                .map(g => ({ value: g.goal_name, label: g.goal_name }))}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Move funds from…"
+              error={!!errors.from_goal}
+              focusColorClass="focus:border-cyan"
+            />
+          )}
+        />
         {fromBalance != null && (
           <p className="mt-1 font-dm text-xs text-soft">
             Current balance: <span className={cn('font-medium', fromBalance < 0 ? 'text-red' : 'text-cyan')}>{fmtSignedAmt(fromBalance)}</span>
@@ -458,27 +441,22 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
       </Field>
 
       <Field label="To goal" error={errors.to_goal?.message}>
-        <div className="relative">
-          <select 
-            {...register('to_goal')} 
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3 pr-10',
-              'font-dm text-sm outline-none transition-colors focus:border-cyan',
-              watchTo ? 'text-white' : 'text-muted',
-              errors.to_goal ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-muted bg-panel">Move funds to…</option>
-            {activeGoals
-              .filter(g => g.goal_name !== watchFrom)
-              .map(g => (
-                <option key={g.id} value={g.goal_name} className="text-white bg-panel">
-                  {g.goal_name}
-                </option>
-              ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-        </div>
+        <Controller
+          name="to_goal"
+          control={control}
+          render={({ field }) => (
+            <Select
+              options={activeGoals
+                .filter(g => g.goal_name !== watchFrom)
+                .map(g => ({ value: g.goal_name, label: g.goal_name }))}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Move funds to…"
+              error={!!errors.to_goal}
+              focusColorClass="focus:border-cyan"
+            />
+          )}
+        />
       </Field>
 
       <Field label="Amount" error={errors.amount?.message}>

@@ -55,7 +55,23 @@ export function AnalyticsDonut({
   })
 
   const slices = useMemo(() => toDonut(rows, activeMonth), [rows, activeMonth])
-  const total  = useMemo(() => donutTotal(slices), [slices])
+
+  // A terminal pick (a subcategory, Save, or — on the Earning tab — a
+  // category) collapses the donut to just that one bucket, at 100%.
+  // Computed before total/arcs so the ring, legend, and centre total all
+  // reflect the same collapsed state.
+  const selectedBucket = selection && selection.kind !== 'total' ? selection.name : null
+
+  const displaySlices = useMemo(() => {
+    if (!selectedBucket) return slices
+    const match = slices.find(s => s.bucket === selectedBucket)
+    // No fallback to the full slice list: if the selected bucket has no
+    // data this period, that IS "no data" — showing every other bucket
+    // instead would silently swap what the user drilled into.
+    return match ? [match] : []
+  }, [slices, selectedBucket])
+
+  const total = useMemo(() => donutTotal(displaySlices), [displaySlices])
 
   const [hover, setHover] = useState<string | null>(null)
   const [tip, setTip] = useState<{ x: number; y: number } | null>(null)
@@ -67,7 +83,7 @@ export function AnalyticsDonut({
     setTip({ x: e.clientX - r.left, y: e.clientY - r.top })
   }
 
-  const arcs = useMemo(() => buildArcs(slices, total), [slices, total])
+  const arcs = useMemo(() => buildArcs(displaySlices, total), [displaySlices, total])
 
   // ── Stale-hover guard ──────────────────────────────────────────────
   // Clicking a legend row sets `hover` to that bucket, then drills — which
@@ -76,8 +92,8 @@ export function AnalyticsDonut({
   // (The legend button also unmounts mid-click, so its onMouseLeave never
   // fires to clear it.) Treating a hover that isn't in the current slices
   // as "no hover" means a stale value can never mute anything.
-  const hoverActive = hover && slices.some(s => s.bucket === hover) ? hover : null
-  const hovered = hoverActive ? slices.find(s => s.bucket === hoverActive) ?? null : null
+  const hoverActive = hover && displaySlices.some(s => s.bucket === hover) ? hover : null
+  const hovered = hoverActive ? displaySlices.find(s => s.bucket === hoverActive) ?? null : null
 
   // Belt-and-braces: drop the hover whenever the drill level changes.
   useEffect(() => {
@@ -92,17 +108,15 @@ export function AnalyticsDonut({
     onSelectBucket(bucket)
   }
 
-  // A terminal pick (Save / subcategory / income category) highlights its
-  // legend row without moving the donut.
-  const selectedBucket = selection && selection.kind !== 'total' ? selection.name : null
-
   return (
     <div className="rounded-2xl border border-line bg-card p-4">
       {/* Header: title only (Back button lives below the ring) */}
-      <div className="flex items-center gap-2 mb-2 min-h-[28px]">
+            <div className="flex items-center gap-2 mb-2 min-h-[28px]">
         <div className="min-w-0">
           <p className="font-sora text-sm font-bold text-soft truncate">
-            {tab === 'earn' ? 'Income by category' : donutTitle(view, focus)}
+            {selectedBucket
+              ? `${selectedBucket} · ${view.dimension}`
+              : tab === 'earn' ? 'Income by category' : donutTitle(view, focus)}
           </p>
         </div>
       </div>
@@ -116,24 +130,34 @@ export function AnalyticsDonut({
           <p className="font-sora text-sm text-red mb-1">Couldn't load breakdown</p>
           <p className="font-dm text-xs text-soft">Check your connection and try again.</p>
         </div>
-      ) : slices.length === 0 ? (
-        <div className="text-center py-16">
-          <span className="text-3xl">📊</span>
-          <p className="mt-2 font-dm text-sm text-soft">No data for this period.</p>
+      ) : displaySlices.length === 0 ? (
+        <div>
+          <div className="text-center py-16">
+            <span className="text-3xl">📊</span>
+            <p className="mt-2 font-dm text-sm text-soft">No data for this period.</p>
+          </div>
+          {/* Still drilled in, even with nothing to show this period —
+              keep the way back out available instead of stranding the user. */}
+          {canDrillBack && (
+            <div className="flex justify-flex-start px-1.5">
+              <button onClick={onDrillBack} aria-label="Back"
+                className="h-7 w-7 flex-none flex items-center justify-center rounded-lg border border-line bg-navy font-sora text-sm text-soft hover:text-white hover:border-soft transition-colors">
+                ←
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div
           key={animKey}
           className={cn(
             "transition-all",
-            // Base states using standard tailwind classes or arbitrary animation configurations
-            animDir === 'down' ? 'animate-slide-from-right' : 'animate-slide-from-left'
+            // Only apply slide animations after the initial load (when animKey > 0)
+            animKey > 0 
+              ? (animDir === 'down' ? 'animate-slide-from-right' : 'animate-slide-from-left') 
+              : '' 
           )}
-          style={{
-            // 📍 Force overriding speed (duration) and easing right here
-            animationDuration: '600ms', // Change to make it slower (e.g. 500ms) or faster (e.g. 150ms)
-            animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', // Snappy premium easing curve
-          }}
+          
         >
 
           {/* ── Ring ── */}
@@ -274,25 +298,19 @@ export function AnalyticsDonut({
             // 📍 FIX 2: Clear hover ONLY when the cursor completely exits the entire legend block
             onMouseLeave={() => setHover(null)} 
           >
-            {slices.map(s => {
+              {displaySlices.map(s => {
               const color = bucketColor(view.dimension, s.bucket)
               const isDim = hoverActive !== null && hoverActive !== s.bucket
-              const isSel = selectedBucket === s.bucket
               return (
                 <button key={s.bucket}
                   onClick={() => handleSelect(s.bucket)}
                   onMouseEnter={() => setHover(s.bucket)}
-                  // 📍 FIX 3: Removed individual row onMouseLeave to prevent intermediate 'null' flashes
                   className={cn(
                     'flex items-center gap-2 rounded-lg px-2 text-left transition-all duration-200',
-                    // 📍 FIX 4: Changed 'py-1.5' to 'py-2'. 
-                    // Since gap-1 (4px) was removed, adding 2px to the top and bottom of each row 
-                    // keeps the text distance exactly the same, but makes the hitboxes gapless.
-                    'py-2', 
+                    'py-2',
                     isDim ? 'opacity-50' : 'opacity-100',
-                    isSel ? 'bg-panel ring-1 ring-inset' : 'hover:bg-panel',
-                  )}
-                  style={isSel ? { boxShadow: `inset 0 0 0 1px ${color}` } : undefined}>
+                    'hover:bg-panel',
+                  )}>
                   <span className="h-2 w-2 rounded-sm flex-none" style={{ background: color }} />
                   <span className="font-dm text-sm text-white truncate flex-1 min-w-0">{s.bucket}</span>
                   <span className="font-sora text-[13px] text-white tabular-nums flex-none">{fmtAmt(s.amount)}</span>

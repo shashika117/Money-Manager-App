@@ -1,7 +1,8 @@
 // src/components/forms/TransferForm.tsx
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
+import { AccountSelect } from '@/components/forms/AccountSelect'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { cn, todayLocal } from '@/lib/utils'
@@ -77,6 +78,7 @@ export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel
     register,
     handleSubmit,
     watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<FormData>({
@@ -185,25 +187,20 @@ export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
           From Account
         </label>
-        <div className="relative">
-          <select
-            {...register('from_account')}
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm outline-none transition-colors focus:border-blue',
-              !watchFromAccount ? 'text-soft' : 'text-white',
-              errors.from_account ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-soft bg-panel">Select source account…</option>
-            {accounts.map(acc => (
-              <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
-                {acc.master_account}
-              </option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-        </div>
+        <Controller
+          name="from_account"
+          control={control}
+          render={({ field }) => (
+            <AccountSelect
+              accounts={accounts}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Select source account…"
+              error={!!errors.from_account}
+              focusColorClass="focus:border-blue"
+            />
+          )}
+        />
         {errors.from_account && (
           <p className="mt-1 font-dm text-xs text-red">{errors.from_account.message}</p>
         )}
@@ -214,27 +211,21 @@ export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel
         <label className="mb-1.5 block font-dm text-xs font-medium uppercase tracking-wider text-soft">
           To Account
         </label>
-        <div className="relative">
-          <select
-            {...register('to_account')}
-            className={cn(
-              'w-full appearance-none rounded-xl border bg-panel px-4 py-3',
-              'font-dm text-sm outline-none transition-colors focus:border-blue',
-              !watchToAccount ? 'text-soft' : 'text-white',
-              errors.to_account ? 'border-red' : 'border-line',
-            )}
-          >
-            <option value="" disabled className="text-soft bg-panel">Select destination account…</option>
-            {accounts
-              .filter(acc => acc.master_account !== watchFromAccount)
-              .map(acc => (
-                <option key={acc.id} value={acc.master_account} className="text-white bg-panel">
-                  {acc.master_account}
-                </option>
-              ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-soft text-xs">▼</span>
-        </div>
+        <Controller
+          name="to_account"
+          control={control}
+          render={({ field }) => (
+            <AccountSelect
+              accounts={accounts}
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Select destination account…"
+              excludeAccount={watchFromAccount}
+              error={!!errors.to_account}
+              focusColorClass="focus:border-blue"
+            />
+          )}
+        />
         {errors.to_account && (
           <p className="mt-1 font-dm text-xs text-red">{errors.to_account.message}</p>
         )}

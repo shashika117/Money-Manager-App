@@ -1,9 +1,5 @@
 // src/components/goals/EditAllocationSheet.tsx
-//
-// Edit an existing MANUAL Monthly Allocation row (non-linked — a linked
-// allocation routes to TransactionDetailPanel instead, handled by the
-// table). Uses the same upsert RPC with force=true to overwrite that
-// month's allocation; also supports deleting the allocation.
+
 
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'

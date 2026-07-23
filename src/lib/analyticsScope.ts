@@ -71,7 +71,9 @@ export function isTotalScope(scope: string): boolean {
 }
 
 // ── Clicking a bucket: is it terminal (no drill), and what's the new focus? ──
-export function isTerminalClick(view: DonutView, bucket: string): boolean {
+export function isTerminalClick(tab: AnalyticsTab, view: DonutView, bucket: string): boolean {
+  // Income has no level below "category" — every click there is terminal.
+  if (tab === 'earn') return true
   if (view.dimension === 'subcategory') return true
   if (view.dimension === 'group' && bucket === 'Save') return true
   return false

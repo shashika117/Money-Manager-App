@@ -1,3 +1,5 @@
+// src\components\charts\NetWorthPerformanceChart.tsx
+
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { NetWorthDataPoint, NetWorthPeriod } from '@/hooks/useNetWorthHistory'
@@ -156,6 +158,13 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
     </div>
   )
 
+
+  // Identifies "this is a genuinely new dataset" (period switch, refetch with
+  // different bounds) as distinct from a resize recomputing `geo` — changing
+  // this key remounts the animated paths so the draw-in only replays when
+  // the data actually changed, not on every window resize.
+  const datasetKey = `${period}-${data.length}-${data[0].period_date}-${data.at(-1)!.period_date}`
+
   // Comparison data
   const cmp = selected.length === 2 ? (() => {
     const [a, b] = [...selected].sort((x, y) => x - y)
@@ -217,14 +226,12 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
         onPointerLeave={onLeave}
         onPointerDown={onDown}
       >
-        <defs>
-          <linearGradient id="nwArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#10b981" stopOpacity="0.30" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0"    />
-          </linearGradient>
-        </defs>
+        <style>{`
+          @keyframes nw-draw-line { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+          @keyframes nw-fade-area { from { opacity: 0; } to { opacity: 1; } }
+        `}</style>
 
-<defs>
+        <defs>
           <linearGradient id="nwArea" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%"   stopColor="#10b981" stopOpacity="0.30" />
             <stop offset="100%" stopColor="#10b981" stopOpacity="0"    />
@@ -255,16 +262,32 @@ export function NetWorthPerformanceChart({ data, period, isLoading }: Props) {
           </text>
         ))}
 
-        {/* Area fill */}
-        <path d={geo.area} fill="url(#nwArea)" />
+{/* Area fill — fades in over 700ms whenever the dataset changes */}
+        <path
+          key={`area-${datasetKey}`}
+          d={geo.area}
+          fill="url(#nwArea)"
+          style={{ animation: 'nw-fade-area 700ms ease-out forwards' }}
+        />
 
-
-        {/* Area fill */}
-        <path d={geo.area} fill="url(#nwArea)" />
-
-        {/* Net worth line */}
-        <path d={geo.line} fill="none" stroke="#10b981" strokeWidth="2.5"
-          strokeLinejoin="round" strokeLinecap="round" />
+        {/* Net worth line — draws in over 700ms whenever the dataset changes.
+            pathLength=1 normalizes the dash math to 0–1 regardless of the
+            path's actual pixel length, so no getTotalLength() measuring is needed. */}
+        <path
+          key={`line-${datasetKey}`}
+          d={geo.line}
+          fill="none"
+          stroke="#10b981"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          pathLength={1}
+          style={{
+            strokeDasharray: 1,
+            strokeDashoffset: 1,
+            animation: 'nw-draw-line 700ms ease-out forwards',
+          }}
+        />
 
         {/* Hover guide */}
         {hoverIdx !== null && (

@@ -1,3 +1,5 @@
+//src\pages\dashboard\DashboardLayout.tsx
+
 import { AppNav } from '@/components/layout/AppNav'
 import { TabKeepAliveLayout } from '@/components/layout/TabKeepAliveLayout'
 import { TabResetProvider } from '@/contexts/TabResetContext'

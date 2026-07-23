@@ -106,14 +106,21 @@ export default function AnalyticsPage() {
   setAnim(a => ({ key: a.key + 1, dir }))
 }
 
-  // Legend-row click (slices are no longer clickable).
+// Legend-row click (slices are no longer clickable).
   function selectBucket(bucket: string) {
     const next = focusOnClick(tab, view, bucket)
 
-    if (isTerminalClick(view, bucket)) {
-      // Terminal: re-scope only. The donut stays put; repeat clicks just
-      // overwrite this one slot, so back is always a single press.
+    if (isTerminalClick(tab, view, bucket)) {
+      // Terminal: re-scope focus. The donut collapses to a single 100%
+      // ring for this bucket (see AnalyticsDonut's displaySlices), so
+      // treat it as a real level change and animate — same as any drill.
+      // Re-clicking the already-selected bucket is a visual no-op, so
+      // skip the animation only in that one case.
+      const alreadySelected = selection?.kind !== 'total' && selection?.name === bucket
       setSelection(next)
+      if (!alreadySelected) {
+        setAnim(a => ({ key: a.key + 1, dir: 'down' }))
+      }
       return
     }
 
@@ -189,6 +196,7 @@ export default function AnalyticsPage() {
               hierarchy={hierarchy}
               view={view}
               focus={focus}
+              selection={selection}
               scope={scopeKey.scope}
               scopeKeyName={scopeKey.key}
               colMonth={colMonth}

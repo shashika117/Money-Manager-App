@@ -162,11 +162,11 @@ select:has(option[value=""]:checked) {
 
 /* ── Calendar month-slide animations ─────────────────────────────── */
 @keyframes slideFromLeft {
-  from { opacity: 0; transform: translateX(-24px); }
+  from { opacity: 0; transform: translateX(-36px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes slideFromRight {
-  from { opacity: 0; transform: translateX(24px); }
+  from { opacity: 0; transform: translateX(36px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 

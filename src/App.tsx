@@ -1,3 +1,5 @@
+// src\App.tsx
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider }                   from '@tanstack/react-query'
 import { AuthProvider }                          from '@/contexts/AuthContext'
@@ -15,6 +17,8 @@ export default function App() {
 
             {/* ── Public: Login ── */}
             <Route path="/login" element={<LoginPage />} />
+
+            <Route path="/" element={<Navigate to="/home" replace />} />
 
             {/* ── Protected: Dashboard Shell ── */}
             <Route
