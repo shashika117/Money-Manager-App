@@ -1,20 +1,6 @@
 // src/hooks/useAnalyticsHistory.ts
 //
-// The Analytics history table feed. Fetches the period's fact_transaction
-// rows (+ Monthly-Allocation rows for the spend tab) ONCE, then filters
-// purely client-side as the donut/column/month selection changes — so
-// clicking a slice never triggers a refetch.
-//
-// Output matches useTransactions: DateGroup[] of enriched Transaction rows,
-// so it drops straight into the existing TransactionTable. Monthly
-// Allocation rows carry an `alloc` marker so Step 4 can route their taps
-// (manual → allocation panel, linked → transfer detail) exactly like the
-// Goal Savings Table.
-//
-// Loan merge policy (confirmed): merge the 2-3 loan rows into one
-// "Loan Payment" row ONLY when nothing is isolating a category/subcategory
-// (i.e. a total scope). Under a group/category/subcategory selection we
-// keep the raw rows so Loan Capital / Loan Interest isolate correctly.
+
 
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -282,3 +268,6 @@ export function useAnalyticsHistory(params: {
 
   return { groups, isLoading: dataQ.isLoading, isError: dataQ.isError }
 }
+
+
+

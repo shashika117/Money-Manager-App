@@ -1,28 +1,14 @@
 // src/hooks/useGoalMutations.ts
 //
-// All Goals-page write operations. Every mutation invalidates the shared
-// Goals caches plus budget caches (linked allocations affect budget
-// savings) so the whole app stays live.
+
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-
-// Keys every goal write should refresh.
-const GOAL_KEYS = [
-  ['goal_activity'],
-  ['goals'],          // active-only list used by forms
-  ['goals_all'],      // enriched list used by Goals page
-  ['total_left_to_save'],
-  ['monthly_left_to_save'],
-  ['budget_table'],
-  ['budget_summary'],
-  ['nws_components'],
-  ['left_for_savings'],
-]
-function invalidateGoals(qc: ReturnType<typeof useQueryClient>) {
-  GOAL_KEYS.forEach(k => qc.invalidateQueries({ queryKey: k }))
-}
+import {
+  invalidateGoalActivityRelated,
+  invalidateGoalDefinitionRelated,
+} from '@/lib/queryInvalidation'
 
 // ════════════════════════════════════════════════════════════════
 // MONTHLY ALLOCATION — upsert with once-per-month override flow
@@ -56,7 +42,7 @@ export function useUpsertMonthlyAllocation() {
     },
     onSuccess: (res) => {
       // Only invalidate when something actually changed (not on 'exists').
-      if (res?.status !== 'exists') invalidateGoals(qc)
+      if (res?.status !== 'exists') invalidateGoalActivityRelated(qc)
     },
   })
 }
@@ -89,7 +75,7 @@ export function useCreateGoalTransfer() {
       if (error) throw error   // includes "Insufficient balance in ..."
       return data
     },
-    onSuccess: () => invalidateGoals(qc),
+    onSuccess: () => invalidateGoalActivityRelated(qc),
   })
 }
 
@@ -114,7 +100,7 @@ export function useUpdateGoalTransfer() {
       if (error) throw error
       return data
     },
-    onSuccess: () => invalidateGoals(qc),
+    onSuccess: () => invalidateGoalActivityRelated(qc),
   })
 }
 
@@ -128,7 +114,7 @@ export function useDeleteGoalTransfer() {
       if (error) throw error
       return data
     },
-    onSuccess: () => invalidateGoals(qc),
+    onSuccess: () => invalidateGoalActivityRelated(qc),
   })
 }
 
@@ -142,7 +128,7 @@ export function useDeleteAllocation() {
       const { error } = await supabase.from('fact_goal').delete().eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => invalidateGoals(qc),
+    onSuccess: () => invalidateGoalActivityRelated(qc),
   })
 }
 
@@ -181,7 +167,7 @@ export function useCreateGoal() {
       if (error) throw error   // unique violations surface here
       return data
     },
-    onSuccess: () => invalidateGoals(qc),
+    onSuccess: () => invalidateGoalDefinitionRelated(qc),
   })
 }
 
@@ -203,7 +189,7 @@ export function useUpdateGoal() {
       if (error) throw error
       return { id: p.id }
     },
-    onSuccess: () => invalidateGoals(qc),
+    onSuccess: () => invalidateGoalDefinitionRelated(qc),
   })
 }
 
@@ -222,6 +208,9 @@ export function useReorderGoals() {
       }
     },
     // Optimistic: caller reorders local state; we just refresh after.
-    onSuccess: () => invalidateGoals(qc),
+    onSuccess: () => invalidateGoalDefinitionRelated(qc),
   })
 }
+
+
+

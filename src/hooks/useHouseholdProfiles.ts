@@ -1,9 +1,5 @@
 // src/hooks/useHouseholdProfiles.ts
 //
-// All profile rows visible to the current user — used to resolve the
-// spouse's display name for account-grouping labels ("Nadeesha's
-// accounts"). Falls back to a generic label wherever the caller can't
-// find a row that isn't the current user's own.
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -22,3 +18,6 @@ export function useHouseholdProfiles() {
     staleTime: Infinity,   // display names essentially never change
   })
 }
+
+
+

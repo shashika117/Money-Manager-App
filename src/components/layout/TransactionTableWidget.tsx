@@ -1,3 +1,5 @@
+//src\components\layout\TransactionTableWidget.tsx
+
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { useTransactions } from '@/hooks/useTransactions'
@@ -7,6 +9,7 @@ import { TransactionDetailPanel } from '@/components/layout/TransactionDetailPan
 import { AddTransactionSheet }    from '@/components/forms/AddTransactionSheet'
 import { FAB }                    from '@/components/ui/FAB'
 import { mergeLoanPayments } from '@/hooks/useTransactions'
+import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 // ADD this import at the top (after the other imports)
 import {
   type TransactionFilters,
@@ -38,6 +41,14 @@ export interface TransactionTableWidgetProps {
   className?: string
 
   onDateGroupSelect?: (date: string) => void
+
+  /** When set, registers this widget's own transaction-list scroll with
+   *  TabResetContext under that page path — tapping that page's nav item
+   *  will scroll this list back to top before resetting. Only pass this
+   *  for the ONE instance that's a page's main view; leave it unset for
+   *  instances nested inside modals/overlays (e.g. the calendar day
+   *  overlay), where "reset the page" isn't really about that list. */
+  scrollRegisterPath?: string
 }
 
 // Add this line anywhere near the top of the file, after the import above
@@ -278,8 +289,10 @@ export function TransactionTableWidget({
   showMonthNav: showNavProp,
   className,
   onDateGroupSelect,      // ← add this
+  scrollRegisterPath,
 }: TransactionTableWidgetProps) {
   const now = new Date()
+  const scrollRef = usePageScrollRef<HTMLDivElement>(scrollRegisterPath)
 
   // Seed the month from the date filter when provided, so the hook
   // fetches the correct month without the user having to navigate.
@@ -341,8 +354,7 @@ export function TransactionTableWidget({
       <FilterPills filters={filters} />
 
       {/* ── Body ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom"> {/* change from "overflow-y-auto" to "overflow-visible" in order to stick date row into the screen */}
-        {isFilteredEmpty ? (
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom"> {/* change from "overflow-y-auto" to "overflow-visible" in order to stick date row into the screen */}        {isFilteredEmpty ? (
           <EmptyFiltered />
         ) : (
           <TransactionTable

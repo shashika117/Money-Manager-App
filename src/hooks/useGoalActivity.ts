@@ -1,12 +1,6 @@
 // src/hooks/useGoalActivity.ts
 //
-// THE core Goals data hook. Fetches the ENTIRE fact_goal table once
-// (~7,500 rows max over 30 years — trivial) and derives everything
-// client-side: per-goal balances, the month→date grouped savings table,
-// per-goal chart series, and 3-month allocation averages.
-//
-// Every other Goals read hook selects from THIS one cache. No per-goal
-// or per-month round trips. Mirrors the useTransactions pattern.
+
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -148,3 +142,5 @@ export function sliceChartPeriod(series: GoalChartPoint[], period: GoalChartPeri
   const months = period === '3M' ? 3 : period === '6M' ? 6 : 12
   return series.slice(Math.max(0, series.length - months - 1))
 }
+
+

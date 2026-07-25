@@ -1,14 +1,4 @@
-// ── src/hooks/useNetWorthHistory.ts ──────────────────────────────
-// Calls get_net_worth_history(p_period) RPC.
-//
-// p_period = '3M'  → daily data, last 3 months  (~90  rows)
-// p_period = '6M'  → daily data, last 6 months  (~180 rows)
-// p_period = '12M' → daily data, last 12 months (~365 rows)
-// p_period = 'ALL' → monthly data, all time     (~240 rows at 20 years)
-//
-// For '3M'/'6M'/'12M': only scans transactions in the period
-//   (idx_ft_date bounded scan, ~1-10 K rows max).
-// For 'ALL': reads from mv_net_worth_monthly (pre-computed, instant).
+// src/hooks/useNetWorthHistory.ts 
  
 import { useQuery } from '@tanstack/react-query'
 import { supabase }  from '@/lib/supabase'
@@ -43,3 +33,5 @@ export function useNetWorthHistory(period: NetWorthPeriod) {
     staleTime: period === 'ALL' ? 1000 * 60 * 60 : 1000 * 60 * 5,
   })
 }
+
+

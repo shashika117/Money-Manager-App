@@ -1,17 +1,6 @@
 // src/pages/dashboard/GoalsPage.tsx
 //
-// Goals page orchestration.
-//   Header: "Goals" title + Show-all toggle switch + "+" create button.
-//   Laptop (lg+): two columns — left 3/5 = Goal Cards, right 2/5 =
-//     Left-to-Save card (top) then Goal Savings Table (sticky).
-//   Mobile: stacked — Left-to-Save on top, then Goal Cards, then table.
-//   Sticky cyan FAB opens the two-tab allocation/share panel.
-//
-// Layout mirrors BudgetPage/TransactionsPage exactly so it scrolls
-// correctly inside DashboardLayout's <main className="main-content-area">:
-//   root  = flex flex-col flex-1 min-h-0 overflow-hidden
-//   header= flex-none
-//   body  = flex-1 min-h-0 overflow-y-auto   ← this makes cards scroll
+
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -21,6 +10,7 @@ import { LeftToSaveCard } from '@/components/goals/LeftToSaveCard'
 import { GoalSavingsTable } from '@/components/goals/GoalSavingsTable'
 import { GoalFormPanel } from '@/components/goals/GoalFormPanel'
 import { GoalAllocationPanel } from '@/components/goals/GoalAllocationPanel'
+import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 
 // Matches Tailwind's lg breakpoint (1024px) — chart + 2-col layout gate.
 function useIsLaptop() {
@@ -39,6 +29,7 @@ function useIsLaptop() {
 export default function GoalsPage() {
   const isLaptop = useIsLaptop()
   const { goals, isLoading, isError } = useGoalsEnriched()
+  const scrollRef = usePageScrollRef<HTMLDivElement>('/goals')
 
   const [showAll, setShowAll] = useState(false)
   const [formGoal, setFormGoal] = useState<EnrichedGoal | null>(null)
@@ -84,7 +75,7 @@ export default function GoalsPage() {
       </div>
 
       {/* ── Body (the scroll container — cards + right column live here) ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom px-4 py-4">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom px-4 py-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-24">
             <div className="h-7 w-7 animate-spin rounded-full border-2 border-cyan border-t-transparent" />

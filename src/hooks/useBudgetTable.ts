@@ -99,3 +99,6 @@ export function filterEmptyRows(rows: BudgetRow[], showAll: boolean): BudgetRow[
   if (showAll) return rows
   return rows.filter(r => r.budget !== 0 || r.actual !== 0)
 }
+
+
+

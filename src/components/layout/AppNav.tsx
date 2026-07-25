@@ -92,15 +92,16 @@ interface AppNavProps {
 
 export function AppNav({ variant }: AppNavProps) {
   const { profile, signOut } = useAuth()
-  const { resetTab }         = useTabReset()
+  const { requestReset }     = useTabReset()
   const location             = useLocation()
   const navigate             = useNavigate()
 
   const handleNavClick = (path: string, e: MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
     if (location.pathname === path) {
-      // User is already on this page -> Reset it
-      resetTab(path)
+      // Already on this page — scroll it back to top first if needed,
+      // then perform the full reset. See TabResetContext.requestReset.
+      requestReset(path)
     } else {
       // Normal navigation -> Change route (preserves existing state due to TabKeepAliveLayout)
       navigate(path)

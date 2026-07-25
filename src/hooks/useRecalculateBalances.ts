@@ -1,5 +1,8 @@
+//src\hooks\useRecalculateBalances.ts
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { invalidateBalanceRelated } from '@/lib/queryInvalidation'
 
 /**
  * Calls recalculate_account_balances() on the server.
@@ -23,11 +26,6 @@ export function useRecalculateBalances() {
       // "Recalculated current_balance for 8 accounts from scratch."
       return data as string
     },
-    onSuccess: () => {
-      // Refresh all balance-dependent queries
-      queryClient.invalidateQueries({ queryKey: ['account_balances'] })
-      queryClient.invalidateQueries({ queryKey: ['net_worth'] })
-      queryClient.invalidateQueries({ queryKey: ['net_worth_history'] })
-    },
+    onSuccess: () => invalidateBalanceRelated(queryClient),
   })
 }

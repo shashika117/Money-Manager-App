@@ -1,18 +1,5 @@
 // src/pages/dashboard/HomePage.tsx
-//
-// The Home dashboard. Every card is scoped to the CURRENT MONTH.
-//
-// Layout
-//   Laptop (lg+): 12-col grid
-//     row 1 → Calendar (7)          | NWS gauge + Account balances (5, stacked)
-//     row 2 → Cumulative spending (7) | Budget details (5)
-//   Mobile: single column, no area chart —
-//     NWS gauge → Account balances → Budget details → Calendar
-//
-// Card chrome (🡵 redirect, ⌄ picker) lives in HomeCard: invisible until
-// hover on laptop, muted-but-visible on mobile.
-//
-// NOTE: default export — App.tsx lazy-loads this route.
+// 🡵 redirect
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,6 +11,7 @@ import { NwsGaugeCard }         from '@/components/home/NwsGaugeCard'
 import { AccountBalancesCard }  from '@/components/home/AccountBalancesCard'
 import { BudgetDetailsCard }    from '@/components/home/BudgetDetailsCard'
 import { SpendingAreaCard }     from '@/components/home/SpendingAreaCard'
+import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 
 function useIsLaptop() {
   const [isLaptop, setIsLaptop] = useState(
@@ -38,6 +26,7 @@ function useIsLaptop() {
   return isLaptop
 }
 
+
 function greeting(): string {
   const h = new Date().getHours()
   if (h < 12) return 'Good Morning'
@@ -46,9 +35,11 @@ function greeting(): string {
 }
 
 export default function HomePage() {
+  
   const { profile, signOut } = useAuth()
   const isLaptop = useIsLaptop()
-
+  const scrollRef = usePageScrollRef<HTMLDivElement>('/home')
+  
   // Add-transaction sheet (same FAB + sheet pair as the Transactions page).
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -76,7 +67,7 @@ export default function HomePage() {
       </div>
 
       {/* ══ BODY ══ */}
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom px-4 py-4">
+     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom px-4 py-4">
         {isLaptop ? (
           // ── Laptop: 12-col grid ──
           <div className="grid grid-cols-12 gap-4 items-start">

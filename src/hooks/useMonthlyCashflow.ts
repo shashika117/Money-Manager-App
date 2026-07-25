@@ -1,3 +1,5 @@
+//src\hooks\useMonthlyCashflow.ts
+
 import { useQuery } from '@tanstack/react-query'
 import { supabase }  from '@/lib/supabase'
 
@@ -33,3 +35,6 @@ export function useMonthlyCashflow(includeSinkingFunds: boolean) {
     staleTime: 1000 * 60 * 5,
   })
 }
+
+
+

@@ -1,4 +1,6 @@
-    import { useQuery } from '@tanstack/react-query'
+//src\hooks\useFamily.ts
+
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 interface Family {
@@ -21,3 +23,6 @@ export function useFamily() {
     staleTime: Infinity,  // family record never changes — cache forever
   })
 }
+
+
+

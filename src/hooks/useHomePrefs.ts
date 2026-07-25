@@ -1,13 +1,6 @@
 // src/hooks/useHomePrefs.ts
 //
-// Household-shared Home page preferences (singleton row, id = 1).
-//   • which accounts show in the Account Balances card
-//   • which subcategories occupy the Budget Details top-6 rows
-//     (tracked separately per rollover population)
-//
-// `undefined` means NOT CONFIGURED YET → the card applies its default.
-// `[]` means the user deliberately unticked everything → respected as-is.
-// That distinction matters, so don't collapse them with `?? []`.
+
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -68,3 +61,6 @@ export function useSetHomePref() {
     },
   })
 }
+
+
+

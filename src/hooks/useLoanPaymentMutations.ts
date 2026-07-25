@@ -1,23 +1,9 @@
+//src\hooks\useLoanPaymentMutations.ts
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-
-// Mirrors INVALIDATE_KEYS in useTransactionMutations.ts — kept identical
-// so a loan payment refreshes every page a regular transfer would.
-const INVALIDATE_KEYS = [
-  ['transactions'],
-  ['account_balances'],
-  ['net_worth'],
-  ['net_worth_daily'],
-  ['budget_rollover'],
-  ['nws_components'],
-  ['left_for_savings'],
-  ['calendar_daily'],
-  ['monthly_cashflow'],
-  ['transactions_search'],
-  ['budget_table'],
-  ['budget_summary'],
-]
+import { invalidateTransactionRelated } from '@/lib/queryInvalidation'
 
 export interface LoanPaymentPayload {
   date:             string   // 'YYYY-MM-DD'
@@ -54,9 +40,7 @@ export function useAddLoanPayment() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      INVALIDATE_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }))
-    },
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
 
@@ -83,9 +67,7 @@ export function useUpdateLoanPayment() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      INVALIDATE_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }))
-    },
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
 
@@ -101,8 +83,8 @@ export function useDeleteLoanPayment() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      INVALIDATE_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }))
-    },
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
+
+

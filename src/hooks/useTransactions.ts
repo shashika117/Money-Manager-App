@@ -1,3 +1,5 @@
+//src\hooks\useTransactions.ts
+
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
@@ -339,3 +341,5 @@ function flagLoanPaymentRows(txns: Transaction[]): Transaction[] {
       : t,
   )
 }
+
+

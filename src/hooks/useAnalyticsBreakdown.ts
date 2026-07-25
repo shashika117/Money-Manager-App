@@ -126,3 +126,5 @@ export function toColumns(rows: BreakdownRow[], monthKeys: string[], topN = 6): 
 
   return { buckets, data, otherKey }
 }
+
+

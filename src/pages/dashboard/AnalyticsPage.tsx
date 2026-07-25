@@ -1,22 +1,6 @@
 // src/pages/dashboard/AnalyticsPage.tsx
 //
-// Analytics page shell. Owns ALL shared state and derives every child's
-// parameters from it:
-//
-//   tab        'spend' | 'earn'                (Hierarchy filter is spend-only)
-//   months     applied Period selection (1-6 contiguous months)
-//   hierarchy  'group' | 'category'            (spend only)
-//   focusStack Focus[] — the drill path; last entry is the active Focus.
-//              The donut's back-arrow pops one level (exact, not inferred).
-//   colMonth   a month isolated by clicking a column-chart x-axis label
-//              (null = whole range). Drives the donut + history table.
-//
-// Layout
-//   Laptop (lg+): master chart full width on top, then a 1:1 row —
-//                 donut left, history table right.
-//   Mobile:       no master chart. Donut on top, history table below.
-//
-// NOTE: default export — App.tsx lazy-loads this route.
+
 
 import { useState, useEffect, useMemo } from 'react'
 import { cn } from '@/lib/utils'
@@ -30,6 +14,7 @@ import { HierarchyFilter } from '@/components/analytics/HierarchyFilter'
 import { AnalyticsDonut }  from '@/components/analytics/AnalyticsDonut'
 import { MasterChart }     from '@/components/analytics/MasterChart'
 import { AnalyticsHistoryTable } from '@/components/analytics/AnalyticsHistoryTable'
+import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 
 function useIsLaptop() {
   const [isLaptop, setIsLaptop] = useState(
@@ -46,6 +31,7 @@ function useIsLaptop() {
 
 export default function AnalyticsPage() {
   const isLaptop = useIsLaptop()
+  const scrollRef = usePageScrollRef<HTMLDivElement>('/analytics')
 
   // ── Shared state ──────────────────────────────────────────────────
   // Two DISTINCT concepts, deliberately kept apart:
@@ -184,7 +170,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* ══ BODY ══ */}
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom px-4 py-4">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom px-4 py-4">
         <div className="flex flex-col gap-4">
 
           {/* Master chart — laptop only, full width */}

@@ -1,3 +1,5 @@
+//src\hooks\useSubCategories.ts
+
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
@@ -79,3 +81,5 @@ export function getIncomeSubCategory(
   return rows.find(r => r.category === category && r.type === 'Income')
     ?.ex_sub_category ?? category
 }
+
+

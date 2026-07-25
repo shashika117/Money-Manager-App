@@ -1,3 +1,5 @@
+//src\hooks\useGoals.ts
+
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
@@ -25,3 +27,5 @@ export function useGoals() {
     staleTime: 1000 * 60 * 5,
   })
 }
+
+

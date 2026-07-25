@@ -1,15 +1,6 @@
 // src/hooks/useGoalsEnriched.ts
 //
-// Goals-page-specific goal list. UNLIKE useGoals (which filters
-// is_active=true and is used by the transaction/transfer forms), this
-// returns ALL goals (active + inactive) enriched with:
-//   • linked_account, template_budget, is_active, created_at
-//   • current_balance (from useGoalActivity)
-//   • required_monthly_saving
-//   • progress_ratio (balance / target_amount)
-//   • pace status: 'ahead' | 'on_track' | 'behind' | null
-//
-// useGoals stays UNTOUCHED so existing form callers are unaffected.
+
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -162,3 +153,6 @@ export function accountLinkedTo(
 ): GoalRow | EnrichedGoal | null {
   return goals.find(g => g.linked_account === account && g.id !== excludeId) ?? null
 }
+
+
+

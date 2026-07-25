@@ -31,3 +31,4 @@ export function useNetWorth() {
     staleTime: 0,  // always fresh — backed by trigger-maintained current_balance
   })
 }
+

@@ -3,30 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-
-const KEYS = [
-  ['transactions'],
-  ['account_balances'],
-  ['net_worth'],
-  ['net_worth_daily'],
-  ['budget_rollover'],
-  ['nws_components'],
-  ['left_for_savings'],
-  ['calendar_daily'],
-  ['goals'],
-  ['monthly_cashflow'],
-  ['transactions_search'],
-  // ── ADDED: editing/updating a transfer can create or move a linked
-  //    Monthly Allocation (or a linked transfer's own edit), so the
-  //    Goals views must refresh alongside everything else.
-  ['goals_all'],
-  ['goal_activity'],
-  ['total_left_to_save'],
-  ['monthly_left_to_save'],
-]
-function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
-  KEYS.forEach(k => qc.invalidateQueries({ queryKey: k }))
-}
+import { invalidateTransactionRelated } from '@/lib/queryInvalidation'
 
 // ── Reconstructed transfer data used to pre-populate edit form ──────
 // From Funds fields REMOVED — transfers no longer withdraw from a goal.
@@ -150,7 +127,7 @@ export function useUpdateTransaction() {
       })
       if (error) throw error
     },
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidateTransactionRelated(qc),
   })
 }
 
@@ -176,7 +153,7 @@ export function useUpdateSinkingFundExpense() {
       })
       if (error) throw error
     },
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidateTransactionRelated(qc),
   })
 }
 
@@ -203,6 +180,8 @@ export function useUpdateTransfer() {
       })
       if (error) throw error
     },
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidateTransactionRelated(qc),
   })
 }
+
+

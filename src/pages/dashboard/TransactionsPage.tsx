@@ -10,6 +10,7 @@ import { CashflowChart }               from '@/components/charts/CashflowChart'
 import { useMonthlyCashflow }          from '@/hooks/useMonthlyCashflow'
 import type { TransactionFilters }     from '@/lib/transactionFilters'
 import type { MonthlySummary }         from '@/hooks/useMonthlyCashflow'
+import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 
 // ── Constants ──────────────────────────────────────────────────────
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun',
@@ -223,6 +224,7 @@ function ViewToggle({ showCalendar, onChange }: { showCalendar: boolean; onChang
 // ════════════════════════════════════════════════════════════════════
 export default function TransactionsPage() {
   const now = new Date()
+  const scrollRef = usePageScrollRef<HTMLDivElement>('/transactions')
 
   const [selectedYear,        setSelectedYear]        = useState(now.getFullYear())
   const [selectedMonth,       setSelectedMonth]       = useState(now.getMonth() + 1)
@@ -298,7 +300,7 @@ function handleOpenPicker() {
       relative to that parent instead of the viewport — causing the FAB
       to visually "drop" on mount. Fade-only avoids any transform here.
     */
-    <div className={cn(
+    <div ref={scrollRef} className={cn(
       'flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-y-auto',
     )}>
 
@@ -430,6 +432,7 @@ function handleOpenPicker() {
             showMonthNav={false}
             onDateGroupSelect={openSheet}
             className="flex-1 min-h-0 w-full"
+            scrollRegisterPath="/transactions"
           />
         </div>
 

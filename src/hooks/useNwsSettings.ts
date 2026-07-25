@@ -1,3 +1,5 @@
+//src\hooks\useNwsSettings.ts
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase }  from '@/lib/supabase'
  
@@ -45,3 +47,5 @@ export function useUpdateNwsBase() {
     },
   })
 }
+
+

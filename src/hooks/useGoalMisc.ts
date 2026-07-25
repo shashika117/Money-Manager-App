@@ -1,10 +1,6 @@
 // src/hooks/useGoalMisc.ts
 //
-// Two small read hooks:
-//   • useTotalLeftToSave — the all-time headline scalar (RPC).
-//   • useGoalChart       — a single goal's running cumulative balance
-//                          series, sliced to a period, from the
-//                          useGoalActivity cache (no extra query).
+
 
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -95,3 +91,5 @@ export function useGoalChart(goalName: string | null, period: GoalChartPeriod) {
     isError:   activityQ.isError,
   }
 }
+
+

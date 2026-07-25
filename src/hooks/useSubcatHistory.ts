@@ -1,3 +1,5 @@
+//src\hooks\useSubcatHistory.ts
+
 import { useQuery } from '@tanstack/react-query'
 import { supabase }  from '@/lib/supabase'
  
@@ -49,3 +51,6 @@ export function useSubcatHistory(
     staleTime: 1000 * 60 * 5,
   })
 }
+
+
+

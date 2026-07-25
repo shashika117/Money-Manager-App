@@ -1,10 +1,8 @@
+//src\hooks\useBudgetMutations.ts
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase }  from '@/lib/supabase'
- 
-function invalidateBudget(qc: ReturnType<typeof useQueryClient>) {
-  qc.invalidateQueries({ queryKey: ['budget_table'] })
-  qc.invalidateQueries({ queryKey: ['budget_summary'] })
-}
+import { invalidateBudgetRelated } from '@/lib/queryInvalidation'
  
 /** Income / Expense subcategory Budget cell. */
 export function useUpsertBudget() {
@@ -24,7 +22,7 @@ export function useUpsertBudget() {
       })
       if (error) throw error
     },
-    onSuccess: () => invalidateBudget(qc),
+    onSuccess: () => invalidateBudgetRelated(qc),
   })
 }
  
@@ -46,6 +44,9 @@ export function useUpsertGoalBudget() {
       })
       if (error) throw error
     },
-    onSuccess: () => invalidateBudget(qc),
+    onSuccess: () => invalidateBudgetRelated(qc),
   })
 }
+
+
+

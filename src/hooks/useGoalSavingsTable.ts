@@ -1,16 +1,4 @@
 // src/hooks/useGoalSavingsTable.ts
-//
-// Builds the Goal Savings Table's month→date grouped structure for a
-// given 4-month window, from the useGoalActivity cache + per-month
-// left-to-save figures from v_left_for_savings.
-//
-// Structure per spec:
-//   MonthSection
-//     ├─ allocations[]         (Monthly Allocation rows — shown WITHOUT dates,
-//     │                          outside date groups)
-//     └─ dateGroups[]          (each = a date with sinking-fund + funds-transfer rows)
-//
-// A month with only allocations has NO date groups.
 
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -174,3 +162,5 @@ export function useGoalSavingsTable(anchorYear: number, anchorMonth1to12: number
     isError:   activityQ.isError   || leftQ.isError,
   }
 }
+
+

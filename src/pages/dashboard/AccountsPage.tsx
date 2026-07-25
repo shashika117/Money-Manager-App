@@ -13,6 +13,7 @@ import { TransactionTableWidget }   from '@/components/layout/TransactionTableWi
 import { AddTransactionSheet }      from '@/components/forms/AddTransactionSheet'
 import { FAB }                      from '@/components/ui/FAB'
 import { useRecalculateBalances } from '@/hooks/useRecalculateBalances'
+import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 
 type ChartKind = 'performance' | 'breakdown'
 
@@ -31,6 +32,7 @@ export default function AccountsPage() {
   const [sheetDate,    setSheetDate]    = useState<string | undefined>()
   const [sheetAccount, setSheetAccount] = useState<string | undefined>()
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null)
+  const scrollRef = usePageScrollRef<HTMLDivElement>('/accounts')
 
   const { data: balances = [], isLoading: balLoading } = useAccountBalances()
   const { data: nw }                                   = useNetWorth()
@@ -131,7 +133,7 @@ export default function AccountsPage() {
       </div>
 
       {/* ── ADDED: UNIFIED SCROLLABLE BODY CONTAINER ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom pb-4">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom pb-4">
 
         {/* ── CHARTS (laptop only) ── */}
         <div className="hidden lg:block px-4 pt-4">
@@ -190,6 +192,7 @@ export default function AccountsPage() {
               showMonthNav
               onDateGroupSelect={date => openSheet(date, selectedAccount ?? undefined)}
               className="flex-1 min-h-0"
+              scrollRegisterPath="/accounts"
             />
           </div>
         </div>
@@ -226,6 +229,7 @@ export default function AccountsPage() {
             showMonthNav
             onDateGroupSelect={date => openSheet(date, selectedAccount)}
             className="flex-1 min-h-0"
+            scrollRegisterPath="/accounts"
           />
 
           <button

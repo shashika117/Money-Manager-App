@@ -1,23 +1,8 @@
+//src\hooks\useDeleteTransaction.ts
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-
-const KEYS = [
-  ['transactions'],
-  ['account_balances'],
-  ['net_worth'],
-  ['net_worth_daily'],
-  ['budget_rollover'],
-  ['nws_components'],
-  ['left_for_savings'],
-  ['calendar_daily'],
-  ['goals'],
-  ['monthly_cashflow'],
-  ['transactions_search'],
-]
-
-function invalidateAll(queryClient: ReturnType<typeof useQueryClient>) {
-  KEYS.forEach(k => queryClient.invalidateQueries({ queryKey: k }))
-}
+import { invalidateTransactionRelated } from '@/lib/queryInvalidation'
 
 // ── Delete regular Expense or Income ──────────────────────────────
 export function useDeleteRegularTransaction() {
@@ -30,7 +15,7 @@ export function useDeleteRegularTransaction() {
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => invalidateAll(queryClient),
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
 
@@ -44,7 +29,7 @@ export function useDeleteSinkingFundExpense() {
       })
       if (error) throw error
     },
-    onSuccess: () => invalidateAll(queryClient),
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
 
@@ -58,6 +43,6 @@ export function useDeleteTransfer() {
       })
       if (error) throw error
     },
-    onSuccess: () => invalidateAll(queryClient),
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }

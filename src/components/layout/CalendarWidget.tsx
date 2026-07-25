@@ -1,11 +1,4 @@
-/**
- * CalendarWidget.tsx — updated with all adjustments:
- *  1. hideHeader prop: removes internal month nav + title
- *  2. No sign (+/−) on date cell amounts (color only)
- *  3. DayOverlay z-index raised to z-50 (above FAB at z-40)
- *  4. DayOverlay: right-half panel on laptop, bottom sheet on mobile
- *  5. DayOverlay uses responsive animations
- */
+//src\components\layout\CalendarWidget.tsx
 
 import { useState, useMemo, useEffect } from 'react'
 import { cn } from '@/lib/utils'

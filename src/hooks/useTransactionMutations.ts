@@ -1,29 +1,9 @@
+//src\hooks\useTransactionMutations.ts
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-
-// ── Query keys to invalidate after any write ───────────────────────
-const INVALIDATE_KEYS = [
-  ['transactions'],
-  ['account_balances'],
-  ['net_worth'],
-  ['net_worth_daily'],
-  ['budget_rollover'],
-  ['nws_components'],
-  ['left_for_savings'],
-  ['calendar_daily'],
-  ['monthly_cashflow'],
-  ['transactions_search'],
-  ['budget_table'],
-  ['budget_summary'],
-  // ── ADDED: a Transfer into a goal-linked account now auto-creates a
-  //    Monthly Allocation server-side, so every transfer write must also
-  //    refresh the Goals views — not just Sinking Funds expenses anymore.
-  ['goals_all'],
-  ['goal_activity'],
-  ['total_left_to_save'],
-  ['monthly_left_to_save'],
-]
+import { invalidateTransactionRelated } from '@/lib/queryInvalidation'
 
 // ── Payload types ──────────────────────────────────────────────────
 
@@ -100,11 +80,7 @@ export function useAddExpense() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      INVALIDATE_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }))
-      // Also invalidate goals if Sinking Funds
-      queryClient.invalidateQueries({ queryKey: ['goals'] })
-    },
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
 
@@ -133,9 +109,7 @@ export function useAddIncome() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      INVALIDATE_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }))
-    },
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
 
@@ -166,9 +140,8 @@ export function useAddTransfer() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      INVALIDATE_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }))
-      queryClient.invalidateQueries({ queryKey: ['goals'] })
-    },
+    onSuccess: () => invalidateTransactionRelated(queryClient),
   })
 }
+
+

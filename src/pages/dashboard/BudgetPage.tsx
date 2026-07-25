@@ -1,4 +1,5 @@
 // src/pages/dashboard/BudgetPage.tsx
+
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { monthKey, monthLabel, parseMonthKey } from '@/lib/budgetFormat'
@@ -8,6 +9,7 @@ import { useEnsureMonthBudget } from '@/hooks/useEnsureMonthBudget'
 import { BudgetTable }   from '@/components/budget/BudgetTable'
 import { SummaryCards }  from '@/components/budget/SummaryCards'
 import { NwsRatioPopup } from '@/components/budget/NwsRatioPopup'
+import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -15,6 +17,8 @@ export default function BudgetPage() {
   const now = new Date()
   const [month, setMonth] = useState<string>(monthKey(now.getFullYear(), now.getMonth() + 1))
   const [showAll, setShowAll] = useState(false)
+
+  const scrollRef = usePageScrollRef<HTMLDivElement>('/budget')
 
   // Popups
   const [nwsOpen, setNwsOpen] = useState(false)
@@ -116,7 +120,7 @@ export default function BudgetPage() {
 
 
       {/* ══ BODY ══ */}
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-safe-bottom">
         <div className="lg:flex lg:gap-4 lg:px-4 lg:py-4">
 
           {/* Sectional table — 3/4 */}
