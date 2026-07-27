@@ -109,8 +109,8 @@ function TransactionRow({ txn, onTap, isLast, accent }: TransactionRowProps) {
         !isLast && 'border-b border-line/50',
       )}
     >
-      {/* ── LEFT column ── */}
-      <div className="w-5/12 flex-none flex flex-col gap-y-0.5">
+      {/* ── LEFT column: Reduced width on mobile (1/3 instead of 5/12) ── */}
+      <div className="w-5/14 sm:w-5/12 flex-none flex flex-col gap-y-0.5">
         <p className={cn(
           'font-sora text-sm font-semibold leading-snug truncate',
           txn.is_transfer ? 'text-soft'
@@ -120,7 +120,7 @@ function TransactionRow({ txn, onTap, isLast, accent }: TransactionRowProps) {
           {txn.display_category}
         </p>
         {txn.display_subcategory && (
-          <p className="font-dm text-[11px] italic text-muted leading-snug truncate">
+          <p className="font-dm text-[11px] italic text-soft/60 leading-snug truncate">
             {txn.display_subcategory}
           </p>
         )}
@@ -128,14 +128,18 @@ function TransactionRow({ txn, onTap, isLast, accent }: TransactionRowProps) {
 
       {/* ── MIDDLE column ── */}
       <div className="min-w-0 flex-1 flex flex-col gap-y-0.5">
-        <p className="font-dm text-sm text-white leading-snug truncate">
-          {txn.master_account}
-        </p>
+
         {txn.note && (
-          <p className="font-dm text-[11px] text-muted leading-snug truncate">
+          <p className="font-dm text-sm text-white leading-snug truncate">
             {txn.note}
           </p>
         )}
+        <p className="font-dm text-[11px] italic text-soft/60 leading-snug truncate">
+          {txn.master_account}
+        </p>
+
+        
+
       </div>
 
       {/* ── RIGHT: Amount — accent colour wins when provided ── */}

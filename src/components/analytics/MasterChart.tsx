@@ -9,20 +9,21 @@
 //
 //   Month range   → CLUSTERED COLUMN chart: one cluster per month, one bar
 //                   per bucket at the CURRENT drill level (top-6 + Other).
-//                   Clicking a bar drills (synced with the donut).
-//                   Clicking an x-axis month label isolates that month
-//                   (others muted) and pushes it into the donut.
-//
-// Both inherit the Period + Hierarchy filters and the donut's drill focus.
+//                   Clicking a bar shows that bucket's per-month trend
+//                   (value labels + dashed line) and dims everything else.
+//                   Clicking the SAME bar/legend row again, or clicking
+//                   the background, clears the selection.
+//                   Clicking an x-axis month label isolates that month.
 
-import { useMemo } from 'react'
+import React, { useMemo, useState, type ReactNode } from 'react'
 import {
-  ResponsiveContainer, ComposedChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceDot, Cell,
+  ResponsiveContainer, ComposedChart, Area, Bar, Line, LabelList,
+  XAxis, YAxis, CartesianGrid, ReferenceDot, Cell,
 } from 'recharts'
+import { cn } from '@/lib/utils'
 
 import { fmtAmt, fmtCompact } from '@/lib/analyticsFormat'
-import { bucketColor, muted, OTHER_COLOR } from '@/lib/analyticsColors'
+import { bucketColor, OTHER_COLOR } from '@/lib/analyticsColors' 
 import {
   type AnalyticsTab, type Hierarchy, type DonutView, type Focus,
   focusLabel, monthShort, enumerateMonths,
@@ -111,7 +112,6 @@ function AreaView({ tab, months, focus, scope, scopeKeyName }: Props) {
               axisLine={{ stroke: '#1e2d45' }} tickLine={false} interval={4} />
             <YAxis tickFormatter={fmtCompact} tick={{ fill: '#4b5563', fontSize: 10 }}
               axisLine={false} tickLine={false} width={44} />
-            <Tooltip content={<AreaTip />} cursor={{ stroke: '#1e2d45', strokeWidth: 1 }} />
 
             {/* Dashed: prior-3-month cumulative average */}
             <Area type="monotone" dataKey="average" stroke="#9ca3af" strokeWidth={1.6}
@@ -136,7 +136,6 @@ function AreaView({ tab, months, focus, scope, scopeKeyName }: Props) {
   )
 }
 
-// Pulsing ring for "today".
 function BlinkRing(props: any) {
   const { cx, cy, color } = props
   if (cx == null || cy == null) return null
@@ -151,33 +150,29 @@ function BlinkRing(props: any) {
   )
 }
 
-function AreaTip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
-  const cur = payload.find((p: any) => p.dataKey === 'current')?.value
-  const avg = payload.find((p: any) => p.dataKey === 'average')?.value
-  return (
-    <div className="rounded-xl border border-line bg-navy px-3 py-2 shadow-xl">
-      <p className="font-sora text-xs font-semibold text-white mb-1">Day {label}</p>
-      {cur != null && (
-        <p className="font-dm text-[11px] text-soft">
-          This month: <span className="font-sora font-semibold text-white tabular-nums">{fmtAmt(cur)}</span>
-        </p>
-      )}
-      {avg != null && (
-        <p className="font-dm text-[11px] text-soft">
-          3-month avg: <span className="font-sora font-semibold text-white tabular-nums">{fmtAmt(avg)}</span>
-        </p>
-      )}
-    </div>
-  )
-}
-
 // ════════════════════════════════════════════════════════════════════
 // COLUMN — month range
 // ════════════════════════════════════════════════════════════════════
 function ColumnView({
   tab, months, bounds, view, focus, colMonth, onToggleMonth, selection,
 }: Props) {
+  const [activeBucket, setActiveBucket] = useState<string | null>(null)
+  
+  // Memory state ensures the trend line morphs/fades smoothly without snapping
+  const [lastActiveBucket, setLastActiveBucket] = useState<string | null>(null)
+
+  // Accepts Recharts payload events or standard React Mouse events.
+  // Clicking the ALREADY-active bucket's own bar or legend row clears it
+  // (same as clicking the background) instead of just re-selecting it.
+  const handleSelect = (b: string | null, event?: any) => {
+    if (event && event.stopPropagation) {
+      event.stopPropagation() 
+    }
+    const next = (b !== null && activeBucket === b) ? null : b
+    setActiveBucket(next)
+    if (next) setLastActiveBucket(next)
+  }
+
   const { data: rows = [], isLoading, isError } = useAnalyticsBreakdown({
     tab, start: bounds.start, endExclusive: bounds.endExclusive, view,
   })
@@ -187,11 +182,6 @@ function ColumnView({
     [months],
   )
 
-  // A terminal selection (a subcategory, or — on Earning — a category)
-  // collapses the column chart to just that one bucket's bar per month,
-  // mirroring the donut's single-slice collapse. `view` still reflects
-  // the parent drill level (it's what fetched `rows` above), so we filter
-  // the already-fetched rows rather than re-querying.
   const selectedBucket = selection && selection.kind !== 'total' ? selection.name : null
   const scopedRows = useMemo(
     () => (selectedBucket ? rows.filter(r => r.bucket === selectedBucket) : rows),
@@ -200,30 +190,35 @@ function ColumnView({
 
   const { buckets, data, otherKey } = useMemo(() => toColumns(scopedRows, monthKeys, 6), [scopedRows, monthKeys])
 
-  // The synthetic spill bucket is always muted grey; every real bucket
-  // (including a genuine category literally named "Other") keeps its own
-  // stable palette colour.
   const colorOf = (b: string) => (b === otherKey ? OTHER_COLOR : bucketColor(view.dimension, b))
 
-  // Clicking a bar does the SAME thing as clicking its month label: isolate
-  // that month (drilling from a bar was too easy to trigger by accident —
-  // drilling now lives solely in the donut's legend).
-  const isolateAt = (index: number) => {
-    const m = data[index]?.month
-    if (typeof m === 'string') onToggleMonth(m)
-  }
+  const activeSafe = activeBucket && buckets.includes(activeBucket) ? activeBucket : null
+  
+  // Stable target for the <Line> component to prevent DOM unmount loops
+  const lineTarget = (lastActiveBucket && buckets.includes(lastActiveBucket)) ? lastActiveBucket : buckets[0]
+  const lineColor = lineTarget ? colorOf(lineTarget) : '#fff'
 
   return (
-    <>
+    <div onClick={() => handleSelect(null)} className="h-full w-full block cursor-default">
+      {/* Clicking anywhere in this wrapper clears the selection */}
+      
       <Header
         title={`${focusLabel(focus)} · by month`}
         subtitle={colMonth
           ? `Isolating ${monthShort(colMonth)} — tap it again to clear`
-          : 'Tap a month (bar or label) to isolate it · drill down from the donut legend'}
+          : activeSafe
+            ? `${activeSafe} — trend across every month`
+            : 'Tap a month label to isolate it · Tap a column to view its trend'}
         legend={
           <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
             {buckets.map(b => (
-              <LegendKey key={b} color={colorOf(b)} label={b} />
+              <LegendKey
+                key={b}
+                color={colorOf(b)}
+                label={b}
+                dim={activeSafe != null && activeSafe !== b}
+                onClick={(e) => handleSelect(b, e)}
+              />
             ))}
           </div>
         }
@@ -239,8 +234,17 @@ function ColumnView({
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={CHART_H}>
-          <BarChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }} barGap={2} barCategoryGap="22%"
-            accessibilityLayer={false}>
+          <ComposedChart
+            data={data}
+            margin={{ top: 26, right: 12, bottom: 4, left: 4 }}
+            barGap={2}
+            barCategoryGap="22%"
+            accessibilityLayer={false}
+            // Prevents clicks on empty chart areas from propagating incorrectly in some browsers
+            onClick={(e: any) => {
+              if (e && e.activePayload == null) handleSelect(null)
+            }}
+          >
             <CartesianGrid stroke="#1e2d45" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="month"
@@ -253,30 +257,75 @@ function ColumnView({
             />
             <YAxis tickFormatter={fmtCompact} tick={{ fill: '#4b5563', fontSize: 10 }}
               axisLine={false} tickLine={false} width={44} />
-            <Tooltip content={<ColumnTip />} cursor={{ fill: '#111e33', opacity: 0.5 }} />
 
             {buckets.map(b => {
               const base = colorOf(b)
               return (
-                <Bar key={b} dataKey={b} radius={[3, 3, 0, 0]}
-                  isAnimationActive animationDuration={600}
-                  onClick={(_: any, index: number) => isolateAt(index)}
-                  cursor="pointer">
+                <Bar 
+                  key={b} 
+                  dataKey={b} 
+                  radius={[3, 3, 0, 0]}
+                  // THE TRICK: Disable Recharts animations ONLY for the clicked bar.
+                  // Initial load (activeSafe is null): true -> 600ms growth animation runs.
+                  // On click (activeSafe === b): false -> LabelList bypasses the timer and snaps instantly.
+                  isAnimationActive={activeSafe !== b}
+                  animationDuration={600}
+                  onClick={(_data: any, _index: number, event: any) => handleSelect(b, event)}
+                  cursor="pointer"
+                >
                   {data.map((row, i) => {
-                    const dim = colMonth != null && row.month !== colMonth
-                    return <Cell key={i} fill={dim ? muted(base, 0.25) : base} />
+                    let alpha = 1
+                    if (colMonth != null && row.month !== colMonth) alpha = 0.25
+                    else if (activeSafe != null && activeSafe !== b) alpha = 0.4
+                    
+                    return (
+                      <Cell 
+                        key={i} 
+                        fill={base} 
+                        fillOpacity={alpha} 
+                        style={{ transition: 'fill-opacity 250ms ease-in-out' }} 
+                      />
+                    )
                   })}
+
+                  {b === activeSafe && (
+                    <LabelList
+                      dataKey={b}
+                      position="top"
+                      offset={8}
+                      formatter={(v: any) => fmtAmt(Number(v) || 0)}
+                      style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, fontSize: 11, fill: '#fff', pointerEvents: 'none' }}
+                    />
+                  )}
                 </Bar>
               )
             })}
-          </BarChart>
+
+            <Line
+              dataKey={lineTarget} 
+              type="monotone"
+              stroke={lineColor}
+              strokeWidth={2}
+              strokeDasharray="5 4"
+              dot={{ r: 3, fill: lineColor, stroke: '#080d1a', strokeWidth: 1.5 }}
+              activeDot={false}
+              isAnimationActive={true} 
+              animationDuration={600}
+              connectNulls
+              style={{
+                pointerEvents: 'none',
+                opacity: activeSafe ? 1 : 0,
+                transition: 'opacity 400ms ease-in-out',
+              }}
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       )}
-    </>
+    </div>
   )
 }
 
-// Clickable x-axis month label (isolates a month).
+// Clickable x-axis month label (isolates a month). 
 function MonthTick({ x, y, payload, colMonth, onToggleMonth }: any) {
   const m        = payload.value as string
   const isActive = colMonth === m
@@ -285,7 +334,10 @@ function MonthTick({ x, y, payload, colMonth, onToggleMonth }: any) {
       <text
         dy={14} textAnchor="middle"
         className="cursor-pointer select-none"
-        onClick={() => onToggleMonth(m)}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleMonth(m)
+        }}
         style={{
           fill: isActive ? '#3b82f6' : '#9ca3af',
           fontSize: 11,
@@ -298,46 +350,39 @@ function MonthTick({ x, y, payload, colMonth, onToggleMonth }: any) {
   )
 }
 
-function ColumnTip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
-  const rows = payload.filter((p: any) => Number(p.value) > 0)
-  if (rows.length === 0) return null
-  return (
-    <div className="rounded-xl border border-line bg-navy px-3 py-2 shadow-xl">
-      <p className="font-sora text-xs font-semibold text-white mb-1">{monthShort(label)}</p>
-      {rows.map((p: any) => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-sm flex-none" style={{ background: p.color }} />
-          <span className="font-dm text-[11px] text-soft flex-1">{p.dataKey}</span>
-          <span className="font-sora text-[11px] font-semibold text-white tabular-nums">{fmtAmt(p.value)}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ── Shared chrome ───────────────────────────────────────────────────
 function Header({ title, subtitle, legend }: {
-  title: string; subtitle: string; legend: React.ReactNode
+  title: string; subtitle: string; legend: ReactNode
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-3">
+    <div className="flex items-start justify-between gap-4 mb-3 pointer-events-none">
       <div className="min-w-0">
         <p className="font-sora text-sm font-bold text-white truncate">{title}</p>
         <p className="font-dm text-[11px] text-muted truncate">{subtitle}</p>
       </div>
-      <div className="flex items-center gap-3 flex-none">{legend}</div>
+      <div className="flex items-center gap-3 flex-none pointer-events-auto">{legend}</div>
     </div>
   )
 }
 
-function LegendKey({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
+function LegendKey({ color, label, dashed, dim, onClick }: {
+  color: string; label: string; dashed?: boolean
+  dim?: boolean
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void
+}) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1.5 transition-opacity duration-150',
+        onClick && 'cursor-pointer',
+        dim ? 'opacity-50' : 'opacity-100',
+      )}
+    >
       {dashed
         ? <span className="inline-block h-0 w-4 border-t-2 border-dashed" style={{ borderColor: color }} />
         : <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: color }} />}
-      <span className="font-dm text-[10px] text-soft whitespace-nowrap">{label}</span>
+      <span className="font-dm text-[10px] text-soft whitespace-nowrap select-none">{label}</span>
     </div>
   )
 }
