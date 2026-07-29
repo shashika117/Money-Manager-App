@@ -36,8 +36,8 @@ export function useTransferGroup(transferGroupId: string | null | undefined) {
         .eq('transfer_group_id', transferGroupId)
       if (e1) throw e1
 
-      const outRow  = txns?.find(t => t.ex_sub_category === 'Transfer' && t.singed_amount < 0)
-      const inRow   = txns?.find(t => t.ex_sub_category === 'Transfer' && t.singed_amount > 0)
+      const outRow  = txns?.find(t => t.ex_sub_category === 'Transfer Out')
+      const inRow   = txns?.find(t => t.ex_sub_category === 'Transfer In')
       const feeRow  = txns?.find(t => t.ex_sub_category === 'Fees & Taxes')
 
       return {
@@ -85,7 +85,7 @@ export function useLoanPaymentGroup(transferGroupId: string | null | undefined) 
 
       const capitalRow   = rows?.find(r => r.ex_sub_category === 'Loan Capital')
       const interestRow  = rows?.find(r => r.ex_sub_category === 'Loan Interest')
-      const liabilityRow = rows?.find(r => r.ex_sub_category === 'Transfer' && r.singed_amount > 0)
+      const liabilityRow = rows?.find(r => r.ex_sub_category === 'Transfer In')
 
       return {
         transfer_group_id: transferGroupId,

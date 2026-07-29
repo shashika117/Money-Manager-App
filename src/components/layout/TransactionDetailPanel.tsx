@@ -396,7 +396,7 @@ if (mode === 'edit') {
 
                     {!transaction.is_transfer_fee && transferGroup.fee > 0 && (
                       <DetailField label="Fee">
-                        <span className="font-dm text-sm text-soft">
+                        <span className="font-dm text-sm text-red">
                           Rs {fmtAmt(transferGroup.fee)}
                         </span>
                       </DetailField>

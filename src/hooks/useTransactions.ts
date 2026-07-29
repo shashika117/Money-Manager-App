@@ -81,7 +81,13 @@ function transform(raw: RawTransaction): Transaction {
   let amount_color:        'green' | 'red' | 'gray'
 
   if (isTransfer) {
-    display_category    = raw.singed_amount < 0 ? 'Transfer Out' : 'Transfer In'
+    // ex_sub_category is the authoritative signal now — create_transfer /
+    // update_transfer write 'Transfer Out' and 'Transfer In' explicitly
+    // (the loan-payment liability leg writes 'Transfer In'). No longer
+    // inferred from the amount's sign: at singed_amount = 0, sign-based
+    // detection couldn't tell the two legs apart — both landed on the
+    // same branch, which is exactly what made a ₹0 transfer unrecordable.
+    display_category    = raw.ex_sub_category === 'Transfer Out' ? 'Transfer Out' : 'Transfer In'
     display_subcategory = ''
     amount_color        = 'gray'
   } else if (isTransferFee) {
@@ -196,6 +202,93 @@ export function mergeLoanPayments(txns: Transaction[]): Transaction[] {
         is_income:            false,
         is_sinking_funds:     false,
         is_loan_payment:      true,
+      })
+      continue
+    }
+    result.push(t)
+  }
+  return result
+}
+
+// ════════════════════════════════════════════════════════════════
+// mergeTransferPairs — PRESENTATION-LAYER UTILITY, same call-site rules
+// as mergeLoanPayments above: only in the general browse view, only
+// when no category/subCategory filter is isolating one specific leg.
+//
+// Merges a transfer's Out+In legs into one synthetic "Transfer" row
+// showing "From → To". Two things it deliberately does NOT do:
+//
+//   - Merge a group where only ONE leg survived an account filter (e.g.
+//     the Accounts page, one account selected). There's no "A → B" to
+//     show with only one side known, so that leg is left exactly as
+//     transform() already renders it — its own correctly-labelled
+//     "Transfer In" or "Transfer Out" row.
+//
+//   - Touch the Fees & Taxes row at all. It's a real, independently
+//     visible expense line (transform() already gives it category
+//     'Other' / subcategory 'Fees & Taxes' / red amount — exactly a
+//     normal expense) that the user can tap on its own; tapping it
+//     still opens the full transfer's details, since its
+//     is_transfer_fee flag (set in transform(), untouched here) is
+//     what TransactionDetailPanel keys off, independent of merging.
+// ════════════════════════════════════════════════════════════════
+export function mergeTransferPairs(txns: Transaction[]): Transaction[] {
+  const byGroup = new Map<string, Transaction[]>()
+  for (const t of txns) {
+    if (!t.transfer_group_id) continue
+    if (!byGroup.has(t.transfer_group_id)) byGroup.set(t.transfer_group_id, [])
+    byGroup.get(t.transfer_group_id)!.push(t)
+  }
+
+  // Only merge when BOTH legs are present. A loan payment's liability
+  // leg also carries ex_sub_category='Transfer In', so exclude any group
+  // that also has a Loan Capital/Interest row — mergeLoanPayments (run
+  // first, in TransactionTableWidget) already owns that group and will
+  // have replaced its rows with one synthetic 'Loan Payment' row before
+  // this function ever sees it; this check just keeps the function
+  // correct even if called on its own.
+  const mergeableGroupIds = new Set<string>()
+  for (const [gid, rows] of byGroup) {
+    const isLoanGroup = rows.some(r => r.ex_sub_category === 'Loan Capital' || r.ex_sub_category === 'Loan Interest')
+    const hasOut = rows.some(r => r.ex_sub_category === 'Transfer Out')
+    const hasIn  = rows.some(r => r.ex_sub_category === 'Transfer In')
+    if (hasOut && hasIn && !isLoanGroup) mergeableGroupIds.add(gid)
+  }
+  if (mergeableGroupIds.size === 0) return txns
+
+  const result: Transaction[] = []
+  const mergedGroupEmitted = new Set<string>()
+
+  for (const t of txns) {
+    const gid = t.transfer_group_id
+
+    if (gid && mergeableGroupIds.has(gid)) {
+      // Fee row: always its own visible line, never absorbed.
+      if (t.ex_sub_category === 'Fees & Taxes') {
+        result.push(t)
+        continue
+      }
+
+      if (mergedGroupEmitted.has(gid)) continue   // the OTHER leg — already emitted
+      mergedGroupEmitted.add(gid)
+
+      const rows   = byGroup.get(gid)!
+      const outRow = rows.find(r => r.ex_sub_category === 'Transfer Out')!
+      const inRow  = rows.find(r => r.ex_sub_category === 'Transfer In')!
+
+      result.push({
+        ...outRow,
+        id:                   outRow.id,
+        master_account:       `${outRow.master_account} → ${inRow.master_account}`,
+        singed_amount:        Math.abs(outRow.singed_amount),
+        display_category:     'Transfer',
+        display_subcategory:  '',
+        amount_color:         'gray',
+        is_transfer:          true,
+        is_transfer_fee:      false,
+        is_income:            false,
+        is_sinking_funds:     false,
+        is_loan_payment:      false,
       })
       continue
     }

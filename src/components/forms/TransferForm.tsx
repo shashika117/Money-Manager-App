@@ -12,6 +12,7 @@ import { useGoalBudgetForMonth } from '@/hooks/useGoalMisc'
 import { fmtAmt } from '@/lib/goalFormat'
 import { useAddTransfer } from '@/hooks/useTransactionMutations'
 import type { EditingTransaction } from '@/components/forms/editTypes'
+import { useUpdateTransfer } from '@/hooks/useEditTransaction'
 
 function formatTransferError(msg: string | undefined): string {
   const raw = String(msg ?? '')
@@ -46,8 +47,8 @@ const schema = z
     amount:       z
       .string()
       .min(1, 'Enter an amount')
-      .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0,{
-        message: 'Amount must be a positive number',
+      .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,{
+        message: 'Amount cannot be negative',
       }),
     fee:        z.string().optional(),
     note:       z.string().optional(),
@@ -68,6 +69,14 @@ export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel
   const { data: accounts = [], isLoading: accLoading } = useAccounts()
   const { goals } = useGoalsEnriched()
   const addTransfer = useAddTransfer()
+  const updateTransfer = useUpdateTransfer()
+
+  // True in-place update only when editing AND still on the Transfer tab
+  // (mirrors TransactionForm's isSameTypeEdit). If the user switched
+  // Type away from Transfer and back, `editing` still carries the
+  // original transfer_group_id but the active form here is treated the
+  // same as any fresh add — falls through to the add-then-delete path.
+  const isSameTypeEdit = !!editing && editing.type === 'Transfer'
 
   const [cleanupError, setCleanupError] = useState<string | null>(null)
 
@@ -122,26 +131,46 @@ export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel
   async function onSubmit(data: FormData) {
     setCleanupError(null)
     try {
-      // Always create the new transfer first — the original (if any) is
-      // only removed after this save succeeds.
-      await addTransfer.mutateAsync({
-        date:         data.date,
-        from_account: data.from_account,
-        to_account:   data.to_account,
-        amount:       parseFloat(data.amount),
-        fee:          data.fee ? parseFloat(data.fee) : 0,
-        note:         data.note ?? '',
-      })
+      if (isSameTypeEdit) {
+        // True in-place update — goes through update_transfer, which
+        // (unlike create_transfer) excludes THIS transfer_group_id from
+        // its once-per-month duplicate-allocation check. This is what
+        // makes editing a transfer into a goal-linked account actually
+        // work — the old add-then-delete path called create_transfer
+        // BEFORE the original's own allocation was removed, so it always
+        // collided with the allocation the transfer had itself created.
+        await updateTransfer.mutateAsync({
+          transfer_group_id: editing!.transaction.transfer_group_id!,
+          date:         data.date,
+          from_account: data.from_account,
+          to_account:   data.to_account,
+          amount:       parseFloat(data.amount),
+          fee:          data.fee ? parseFloat(data.fee) : 0,
+          note:         data.note ?? '',
+        })
+      } else {
+        // Fresh add — either a brand-new transfer, or an edit where the
+        // Type was changed to Transfer from something else. The original
+        // (if any) is removed below, only after this save succeeds.
+        await addTransfer.mutateAsync({
+          date:         data.date,
+          from_account: data.from_account,
+          to_account:   data.to_account,
+          amount:       parseFloat(data.amount),
+          fee:          data.fee ? parseFloat(data.fee) : 0,
+          note:         data.note ?? '',
+        })
 
-      if (editing) {
-        try {
-          await editing.deleteOriginal()
-        } catch (cleanupErr) {
-          console.error('Failed to remove original record after edit:', cleanupErr)
-          setCleanupError(
-            'Saved, but the original transaction could not be removed automatically. Please delete it manually from the transaction list to avoid a duplicate.'
-          )
-          return
+        if (editing) {
+          try {
+            await editing.deleteOriginal()
+          } catch (cleanupErr) {
+            console.error('Failed to remove original record after edit:', cleanupErr)
+            setCleanupError(
+              'Saved, but the original transaction could not be removed automatically. Please delete it manually from the transaction list to avoid a duplicate.'
+            )
+            return
+          }
         }
       }
 
@@ -313,10 +342,10 @@ export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel
       </div>
 
       {/* ── Server error ── */}
-      {addTransfer.isError && (
+      {(addTransfer.isError || updateTransfer.isError) && (
         <div className="rounded-xl border border-red/30 bg-red/10 px-4 py-3">
           <p className="font-dm text-sm text-red leading-relaxed">
-            {formatTransferError(addTransfer.error?.message)}
+            {formatTransferError((addTransfer.error || updateTransfer.error)?.message)}
           </p>
         </div>
       )}
@@ -331,15 +360,17 @@ export function TransferForm({ sharedData, updateSharedData, onSuccess, onCancel
       {/* ── Submit ── */}
       <button
         type="submit"
-        disabled={addTransfer.isPending}
+        disabled={addTransfer.isPending || updateTransfer.isPending}
         className={cn(
           'mt-2 w-full rounded-xl bg-blue py-4',
           'font-sora text-sm font-semibold text-white',
           'transition-all active:scale-[0.98]',
-          addTransfer.isPending ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
+          (addTransfer.isPending || updateTransfer.isPending) ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
         )}
       >
-        {addTransfer.isPending ? 'Saving…' : 'Save Transfer'}
+        {(addTransfer.isPending || updateTransfer.isPending)
+          ? 'Saving…'
+          : isSameTypeEdit ? 'Update Transfer' : 'Save Transfer'}
       </button>
 
       {/* ── Cancel ── */}

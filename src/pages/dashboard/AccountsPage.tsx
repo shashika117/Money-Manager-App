@@ -212,11 +212,15 @@ export default function AccountsPage() {
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-line bg-card px-4 flex-none"
             style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)', paddingBottom: '12px' }}>
+            
+            {/*
             <button onClick={closeMobileWidget}
               className="h-9 w-9 flex items-center justify-center rounded-xl border border-line bg-navy font-sora text-base text-soft hover:text-white transition-colors active:scale-95"
               aria-label="Back">
               ‹
             </button>
+            */}
+
             <div className="min-w-0">
               <p className="font-dm text-[10px] uppercase tracking-widest text-soft">Account</p>
               <h2 className="font-sora text-base font-bold text-white truncate">{selectedAccount}</h2>
@@ -232,29 +236,41 @@ export default function AccountsPage() {
             scrollRegisterPath="/accounts"
           />
 
-          <button
-            onClick={() => openSheet(undefined, selectedAccount)}
-            aria-label="Add transaction"
-            className="fixed right-5 z-[45] h-14 w-14 rounded-full bg-green shadow-lg shadow-green/30 flex items-center justify-center font-sora text-2xl font-light text-white transition-all active:scale-90 touch-manipulation"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
-          >
-            +
-          </button>
-        </div>
-      )}
 
-      {/* Laptop FAB */}
-      <div className="hidden lg:block">
-        <FAB onClick={() => openSheet(undefined, selectedAccount ?? undefined)} />
-      </div>
+              {/* ── FAB (+) MOVED TO BOTTOM-LEFT ── */}
+              <button
+                 onClick={() => openSheet(undefined, selectedAccount)}
+                 aria-label="Add transaction"
+                 className="fixed left-5 z-[45] h-14 w-14 rounded-full bg-green shadow-lg shadow-green/30 flex items-center justify-center font-sora text-2xl font-light text-white transition-all active:scale-90 touch-manipulation"
+                 style={{ bottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
+               >
+                 +
+               </button>
 
-      {/* Sheet — shared between laptop and mobile */}
-      <AddTransactionSheet
-        isOpen={sheetOpen}
-        onClose={closeSheet}
-        initialDate={sheetDate}
-        initialAccount={sheetAccount}
-      />
+               {/* ── BACK BUTTON (‹) MOVED TO BOTTOM-RIGHT ── */}
+               <button
+                 onClick={closeMobileWidget}
+                 aria-label="Back"
+                 className="fixed right-5 z-[45] h-14 w-14 rounded-full bg-navy border border-line shadow-lg shadow-black/20 flex items-center justify-center font-sora text-3xl font-light text-soft transition-all active:scale-90 touch-manipulation pb-1"
+                 style={{ bottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
+               >
+                 ‹
+               </button>
+                     </div>
+                   )}
+
+                   {/* Laptop FAB */}
+                   <div className="hidden lg:block">
+                     <FAB onClick={() => openSheet(undefined, selectedAccount ?? undefined)} />
+                   </div>
+             
+                   {/* Sheet — shared between laptop and mobile */}
+                   <AddTransactionSheet
+                     isOpen={sheetOpen}
+                     onClose={closeSheet}
+                     initialDate={sheetDate}
+                     initialAccount={sheetAccount}
+                   />
 
       {/* Recalculate result toast */}
       {recalcMsg && (

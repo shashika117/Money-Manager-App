@@ -8,7 +8,7 @@ import { TransactionTable }       from '@/components/layout/TransactionTable'
 import { TransactionDetailPanel } from '@/components/layout/TransactionDetailPanel'
 import { AddTransactionSheet }    from '@/components/forms/AddTransactionSheet'
 import { FAB }                    from '@/components/ui/FAB'
-import { mergeLoanPayments } from '@/hooks/useTransactions'
+import { mergeLoanPayments, mergeTransferPairs } from '@/hooks/useTransactions'
 import { usePageScrollRef } from '@/hooks/usePageScrollRef'
 // ADD this import at the top (after the other imports)
 import {
@@ -323,9 +323,18 @@ export function TransactionTableWidget({
   // true, unmerged amount for exactly that subcategory, not a combined
   // total. Account and date filters are unaffected — merging is still
   // safe and still nice to look at in those views.
-  const shouldMergeLoanPayments = !filters.category && !filters.subCategory
-  const finalGroups = shouldMergeLoanPayments
-    ? displayGroups.map(g => ({ ...g, transactions: mergeLoanPayments(g.transactions) }))
+  // Same guard covers both merges — a category/subCategory filter means
+  // the view is isolating one specific subcategory's true amount, which
+  // either merge would corrupt. Loan-payment merging runs first so
+  // mergeTransferPairs never has to reason about a loan group's liability
+  // leg (also ex_sub_category='Transfer In') — by the time it runs, that
+  // leg is already gone, replaced by mergeLoanPayments' one synthetic row.
+  const shouldMergeGroupedTypes = !filters.category && !filters.subCategory
+  const finalGroups = shouldMergeGroupedTypes
+    ? displayGroups.map(g => ({
+        ...g,
+        transactions: mergeTransferPairs(mergeLoanPayments(g.transactions)),
+      }))
     : displayGroups
 
   // Each widget instance owns its own selected transaction state.

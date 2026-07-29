@@ -1,15 +1,5 @@
 // src/components/forms/AccountSelect.tsx
-//
-// Custom dropdown replacing the plain native <select> for account
-// pickers. Groups accounts into three sections so a two-person
-// household isn't scrolling one long flat list every time:
-//
-//   Your accounts        — always expanded
-//   Common accounts       — collapsed by default, tap to reveal
-//   {Spouse}'s accounts   — collapsed by default, tap to reveal
-//
-// Not a native form element — wire it up with react-hook-form's
-// <Controller>, not register().
+
 
 import { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react'
 import { cn } from '@/lib/utils'

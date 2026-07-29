@@ -1,3 +1,5 @@
+//src\components\layout\TransactionTable.tsx
+
 import { cn } from '@/lib/utils'
 import type { DateGroup, Transaction } from '@/hooks/useTransactions'
 
@@ -109,7 +111,7 @@ function TransactionRow({ txn, onTap, isLast, accent }: TransactionRowProps) {
         !isLast && 'border-b border-line/50',
       )}
     >
-      {/* ── LEFT column: Reduced width on mobile (1/3 instead of 5/12) ── */}
+      {/* ── LEFT column: Reduced width on mobile  ── */}
       <div className="w-5/14 sm:w-5/12 flex-none flex flex-col gap-y-0.5">
         <p className={cn(
           'font-sora text-sm font-semibold leading-snug truncate',
