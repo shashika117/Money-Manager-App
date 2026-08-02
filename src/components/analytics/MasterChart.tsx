@@ -18,7 +18,7 @@
 import React, { useMemo, useState, type ReactNode } from 'react'
 import {
   ResponsiveContainer, ComposedChart, Area, Bar, Line, LabelList,
-  XAxis, YAxis, CartesianGrid, ReferenceDot, Cell,
+  XAxis, YAxis, CartesianGrid, ReferenceDot, Cell, Tooltip,
 } from 'recharts'
 import { cn } from '@/lib/utils'
 
@@ -112,6 +112,7 @@ function AreaView({ tab, months, focus, scope, scopeKeyName }: Props) {
               axisLine={{ stroke: '#1e2d45' }} tickLine={false} interval={4} />
             <YAxis tickFormatter={fmtCompact} tick={{ fill: '#4b5563', fontSize: 10 }}
               axisLine={false} tickLine={false} width={44} />
+            <Tooltip content={<AreaTip />} cursor={{ stroke: '#1e2d45', strokeWidth: 1 }} />
 
             {/* Dashed: prior-3-month cumulative average */}
             <Area type="monotone" dataKey="average" stroke="#9ca3af" strokeWidth={1.6}
@@ -147,6 +148,39 @@ function BlinkRing(props: any) {
         <animate attributeName="opacity" values="0.7;0;0.7" dur="1.8s" repeatCount="indefinite" />
       </circle>
     </g>
+  )
+}
+
+function AreaTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const cur = payload.find((p: any) => p.dataKey === 'current')?.value
+  const avg = payload.find((p: any) => p.dataKey === 'average')?.value
+
+  return (
+    <div className="rounded-xl border border-line bg-navy px-3.5 py-2.5 shadow-xl">
+      <p className="font-sora text-xs font-semibold text-white mb-2 text-left">
+        Day {label}
+      </p>
+
+      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1.5 items-baseline text-left">
+        {cur != null && (
+          <>
+            <span className="font-dm text-[11px] text-soft">This month:</span>
+            <span className="font-sora text-xs font-semibold text-white tabular-nums">
+              {fmtAmt(cur)}
+            </span>
+          </>
+        )}
+        {avg != null && (
+          <>
+            <span className="font-dm text-[11px] text-soft">3-month avg:</span>
+            <span className="font-sora text-xs font-semibold text-white tabular-nums">
+              {fmtAmt(avg)}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
