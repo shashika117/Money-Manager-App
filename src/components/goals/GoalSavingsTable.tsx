@@ -1,22 +1,5 @@
 // src/components/goals/GoalSavingsTable.tsx
 //
-// The Goal Savings Table: a 4-month slot with month sections, each an
-// isolated bordered card containing dateless Monthly Allocation rows
-// plus date groups of Sinking Funds + Funds Transfer rows.
-//
-// Sticky headers: the month header pins to the top of the scroll body
-// (top-0) and the date header pins just below it (top-[42px]) while the
-// rows underneath scroll. For sticky to resolve against the scroll body
-// (not the card), the month card and date block must NOT be
-// overflow-hidden; rounded corners are handled by rounding the header's
-// top and clipping only the innermost rows container instead.
-//
-// Row / header tap routing:
-//   • Month header      → open allocation panel, pre-filled to that month
-//   • Monthly Allocation (linked)   → TransactionDetailPanel (as a transfer)
-//   •                    (manual)   → allocation panel, pre-filled for edit
-//   • Sinking Funds     → TransactionDetailPanel
-//   • Funds Transfer    → EditGoalTransferSheet
 
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -34,7 +17,7 @@ import { EditGoalTransferSheet } from '@/components/goals/EditGoalTransferSheet'
 import { GoalAllocationPanel } from '@/components/goals/GoalAllocationPanel'
 import { TransactionDetailPanel } from '@/components/layout/TransactionDetailPanel'
 
-// Sticky offsets (px). Month header ≈ 41px tall; date header pins under it.
+
 const MONTH_HEADER_H = 42
 
 // Adapt a fact_goal activity row into the Transaction shape the detail

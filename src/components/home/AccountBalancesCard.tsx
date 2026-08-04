@@ -1,9 +1,7 @@
 // src/components/home/AccountBalancesCard.tsx
 //
 // Frequently-used accounts + their current balances. Rows are inert
-// (no click action, per spec). The ⌄ picker chooses which active
-// accounts appear; the choice is household-shared and persisted.
-//
+// (no click action, per spec). The drop down picker chooses which active
 // Default when nothing has been configured: the first 5 active accounts
 // by sort_order.
 

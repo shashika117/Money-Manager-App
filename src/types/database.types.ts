@@ -398,19 +398,19 @@ export type Database = {
       }
       home_prefs: {
         Row: {
-          id: number
           prefs: Json
           updated_at: string
+          user_id: string
         }
         Insert: {
-          id?: number
           prefs?: Json
           updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: number
           prefs?: Json
           updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -783,7 +783,10 @@ export type Database = {
       }
       get_total_left_to_save: { Args: never; Returns: number }
       recalculate_account_balances: { Args: never; Returns: string }
-      set_home_pref: { Args: { p_key: string; p_value: Json }; Returns: Json }
+      set_home_pref: {
+        Args: { p_key: string; p_user_id: string; p_value: Json }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       update_goal_transfer: {

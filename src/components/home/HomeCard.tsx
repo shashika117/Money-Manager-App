@@ -1,16 +1,5 @@
 // src/components/home/HomeCard.tsx
 //
-// The shared shell for every Home page card.
-//
-// Icon visibility rule (per spec):
-//   • Laptop  → icons are INVISIBLE until the mouse enters the card
-//               (opacity-0 → group-hover:opacity-100)
-//   • Mobile  → icons are always visible, but MUTED (opacity-50)
-//   Tailwind: base = mobile, `md:` = laptop. So:
-//     `opacity-50 md:opacity-0 md:group-hover:opacity-100`
-//
-// Also exports CheckboxPicker — the ⌄ dropdown popover used by the
-// Account Balances and Budget Details cards.
 
 import { useState, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
