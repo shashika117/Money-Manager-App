@@ -78,8 +78,8 @@ export function GoalSavingsTable({ onActivePanelChange }: {
   // Active sheet routing
   const [editTransfer, setEditTransfer] = useState<GoalActivityRecord | null>(null)
   const [detailTxn, setDetailTxn] = useState<Transaction | null>(null)
-  const [allocPanel, setAllocPanel] = useState<
-    { month: string; goal?: string; amount?: number; note?: string | null } | null
+  const [allocPanel, setAllocPanel] = useState <
+    { month: string; goal?: string; amount?: number; note?: string | null; id?: string } | null
   >(null)
 
   // Tell the parent when any side panel is open, so it can hide the FAB
@@ -107,11 +107,13 @@ export function GoalSavingsTable({ onActivePanelChange }: {
       } else {
         // manual → open the allocation manager PRE-FILLED for editing,
         // so the user sees the month's Left-to-Save + summary table too.
+        // `id` is what puts the panel into edit mode (see GoalAllocationPanel).
         setAllocPanel({
           month:  rec.date.slice(0, 7) + '-01',
           goal:   rec.goal,
           amount: Math.abs(rec.singed_amount),
           note:   rec.note,
+          id:     rec.id,
         })
       }
     } else if (rec.kind === 'sinking_fund') {
@@ -175,6 +177,7 @@ export function GoalSavingsTable({ onActivePanelChange }: {
           initialGoal={allocPanel.goal}
           initialAmount={allocPanel.amount}
           initialNote={allocPanel.note ?? undefined}
+          editingId={allocPanel.id}
           onClose={() => setAllocPanel(null)} />
       )}
       <TransactionDetailPanel transaction={detailTxn} onClose={() => setDetailTxn(null)} />

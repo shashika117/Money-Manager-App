@@ -16,6 +16,7 @@ import {
 import {
   useUpsertMonthlyAllocation,
   useCreateGoalTransfer,
+  useDeleteAllocation,
 } from '@/hooks/useGoalMutations'
 import { useLeftToSaveForMonth, useGoalBudgetForMonth } from '@/hooks/useGoalMisc'
 
@@ -29,13 +30,20 @@ interface Props {
   initialGoal?:  string   // pre-fills allocate goal (edit-from-table)
   initialAmount?: number  // pre-fills allocate amount (edit-from-table)
   initialNote?:  string   // pre-fills allocate note (edit-from-table)
+  /** Present ONLY when opened to edit an existing Monthly Allocation row
+   *  (routed from GoalSavingsTable). Its presence — not initialGoal —
+   *  is what puts the panel into edit mode: locks out the Share tab,
+   *  changes the title, skips the "add another?" screen, and adds a
+   *  Delete option. Never set for the FAB / month-header "add" paths. */
+  editingId?:    string
 }
 
 export function GoalAllocationPanel({
   onClose, initialTab = 'allocate', initialMonth, initialDate,
-  initialGoal, initialAmount, initialNote,
+  initialGoal, initialAmount, initialNote, editingId,
 }: Props) {
-  const [tab, setTab] = useState<Tab>(initialTab)
+  const isEditing = !!editingId
+  const [tab, setTab] = useState<Tab>(isEditing ? 'allocate' : initialTab)
   const [isClosing, setIsClosing] = useState(false)
 
   function handleClose() {
@@ -59,20 +67,27 @@ export function GoalAllocationPanel({
 
         {/* Header + tabs */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-line flex-none">
-          <h2 className="font-sora text-base font-semibold text-white">Manage Goals</h2>
+          <h2 className="font-sora text-base font-semibold text-white">
+            {isEditing ? 'Edit Allocation' : 'Manage Goals'}
+          </h2>
           <button onClick={handleClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-panel font-dm text-soft hover:text-white" aria-label="Close">✕</button>
         </div>
 
-        <div className="flex gap-1.5 rounded-xl bg-panel p-1 mx-5 mt-4 flex-none">
-          <TabButton active={tab === 'allocate'} onClick={() => setTab('allocate')}>Allocate</TabButton>
-          <TabButton active={tab === 'share'}    onClick={() => setTab('share')}>Share</TabButton>
-        </div>
+        {/* Tab switcher — hidden while editing: an existing allocation's
+            "type" can't change to a goal-to-goal Share here. */}
+        {!isEditing && (
+          <div className="flex gap-1.5 rounded-xl bg-panel p-1 mx-5 mt-4 flex-none">
+            <TabButton active={tab === 'allocate'} onClick={() => setTab('allocate')}>Allocate</TabButton>
+            <TabButton active={tab === 'share'}    onClick={() => setTab('share')}>Share</TabButton>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-5 pt-4"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
           {tab === 'allocate'
             ? <AllocateTab
+                editingId={editingId}
                 initialMonth={initialMonth} initialGoal={initialGoal}
                 initialAmount={initialAmount} initialNote={initialNote}
                 onDone={onClose} />
@@ -99,7 +114,6 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 const allocSchema = z.object({
   month:  z.string().min(1, 'Pick a month'),
   goal:   z.string().min(1, 'Select a goal'),
-  // 🎯 Removed restriction: amount can be positive, negative, or zero. Just needs to be a valid number.
   amount: z.string().min(1, 'Enter an amount')
     .refine(v => !isNaN(parseFloat(v)), { message: 'Enter a valid number' }),
   note:   z.string().optional(),
@@ -111,15 +125,20 @@ function monthInputValue(monthKey?: string): string {
   return todayLocal().slice(0, 7)
 }
 
-function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, onDone }: {
+function AllocateTab({ editingId, initialMonth, initialGoal, initialAmount, initialNote, onDone }: {
+  editingId?: string
   initialMonth?: string; initialGoal?: string; initialAmount?: number; initialNote?: string
   onDone: () => void
 }) {
+  const isEditing = !!editingId
   const { goals } = useGoalsEnriched()
   const upsert = useUpsertMonthlyAllocation()
+  const del    = useDeleteAllocation()
 
   const [overridePrompt, setOverridePrompt] = useState<AllocForm | null>(null)
   const [addAnother, setAddAnother] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [cleanupError, setCleanupError] = useState<string | null>(null)
 
   const {
     register, handleSubmit, watch, control, reset, formState: { errors },
@@ -149,25 +168,70 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
     [goals],
   )
 
+  // The record's ORIGINAL target, fixed at mount — used to tell "just
+  // changed the amount/note" apart from "moved this to a different goal
+  // or month". Only the latter is a genuine new target that needs its
+  // own duplicate check; the former is unambiguously overwriting the
+  // exact row already being edited.
+  const originalGoal  = initialGoal ?? ''
+  const originalMonth = monthInputValue(initialMonth)
+
   async function doSave(form: AllocForm, force: boolean) {
     const date = `${form.month}-01`
+    const movedTarget = isEditing && (form.goal !== originalGoal || form.month !== originalMonth)
+    const effectiveForce = (isEditing && !movedTarget) ? true : force
+
     const res = await upsert.mutateAsync({
-      date, goal_name: form.goal, amount: parseFloat(form.amount), note: form.note, force,
+      date, goal_name: form.goal, amount: parseFloat(form.amount), note: form.note, force: effectiveForce,
     })
-    if (res.status === 'exists' && !force) {
+    if (res.status === 'exists' && !effectiveForce) {
       setOverridePrompt(form)
       return
     }
     setOverridePrompt(null)
+
+    if (isEditing && movedTarget) {
+      // True move: the new target now holds the (possibly overridden)
+      // data — remove the record at the OLD target so it doesn't linger
+      // as a separate row. Only run after the new target's save is
+      // confirmed successful, so a failed save never loses data.
+      try {
+        await del.mutateAsync(editingId!)
+      } catch (err) {
+        console.error('Failed to remove original allocation after move:', err)
+        setCleanupError(
+          'Saved to the new goal/month, but the original allocation could not be removed automatically. Please delete it manually.'
+        )
+        return
+      }
+    }
+
+    if (isEditing) {
+      onDone()   // edits close immediately — no "add another?" prompt
+      return
+    }
+
     setAddAnother(true)
     reset({ month: form.month, goal: '', amount: '', note: '' })
   }
 
   async function onSubmit(form: AllocForm) {
+    setCleanupError(null)
     try { await doSave(form, false) }
     catch (err) { console.error('Allocation failed:', err) }
   }
 
+  async function handleDelete() {
+    if (!editingId) return
+    try {
+      await del.mutateAsync(editingId)
+      onDone()
+    } catch (err) {
+      console.error('Allocation delete failed:', err)
+    }
+  }
+
+  // ── Fresh-add success screen — unreachable while editing ──────────
   if (addAnother) {
     return (
       <div className="flex flex-col gap-4 py-6 text-center animate-fade-in">
@@ -182,6 +246,56 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
           <button onClick={onDone}
             className="flex-1 rounded-xl border border-line py-3 font-dm text-sm text-soft hover:text-white">
             No, close
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Delete confirmation — edit mode only ───────────────────────────
+  if (confirmDelete) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="rounded-xl border border-red/30 bg-red/10 px-4 py-4">
+          <p className="font-sora text-sm font-semibold text-red mb-2">Delete this allocation?</p>
+          <p className="font-dm text-xs text-soft leading-relaxed">
+            This permanently removes {originalGoal || 'this goal'}'s allocation for {originalMonth}.
+          </p>
+        </div>
+        <button onClick={handleDelete} disabled={del.isPending}
+          className={cn('w-full rounded-xl bg-red py-4 font-sora text-sm font-semibold text-white transition-all active:scale-[0.98]',
+            del.isPending ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90')}>
+          {del.isPending ? 'Deleting…' : 'Yes, delete'}
+        </button>
+        <button onClick={() => setConfirmDelete(false)}
+          className="w-full rounded-xl border border-line py-3 font-dm text-sm text-soft hover:text-white">
+          Cancel
+        </button>
+      </div>
+    )
+  }
+
+  // ── Override confirmation — now an internal screen of the panel
+  //     itself, not a viewport-centered floating modal (which is what
+  //     made it appear off-center relative to the panel on laptop). ──
+  if (overridePrompt) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-4">
+          <p className="font-sora text-sm font-semibold text-amber mb-2">Override existing allocation?</p>
+          <p className="font-dm text-sm text-soft leading-relaxed">
+            This will replace the existing allocation for <span className="text-white">{overridePrompt.goal}</span> with{' '}
+            <span className="text-white">{fmtAmt(parseFloat(overridePrompt.amount))}</span>.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => doSave(overridePrompt, true)}
+            className="flex-1 rounded-xl bg-amber py-3 font-sora text-sm font-semibold text-white hover:opacity-90">
+            Override
+          </button>
+          <button onClick={() => setOverridePrompt(null)}
+            className="flex-1 rounded-xl border border-line py-3 font-dm text-sm text-soft hover:text-white">
+            Cancel
           </button>
         </div>
       </div>
@@ -250,7 +364,6 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
           type="number" 
           inputMode="decimal" 
           step="0.01" 
-          // 🎯 Removed min="0" to natively allow negative values on devices
           placeholder="0.00"
           {...register('amount')} 
           className={cn(
@@ -271,33 +384,23 @@ function AllocateTab({ initialMonth, initialGoal, initialAmount, initialNote, on
         </div>
       )}
 
-      <button type="submit" disabled={upsert.isPending}
+      {cleanupError && (
+        <div className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3">
+          <p className="font-dm text-sm text-amber leading-relaxed">{cleanupError}</p>
+        </div>
+      )}
+
+      <button type="submit" disabled={upsert.isPending || del.isPending}
         className={cn('mt-1 w-full rounded-xl bg-cyan py-4 font-sora text-sm font-semibold text-navy transition-all active:scale-[0.98]',
-          upsert.isPending ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90')}>
-        {upsert.isPending ? 'Saving…' : 'Save allocation'}
+          (upsert.isPending || del.isPending) ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90')}>
+        {upsert.isPending || del.isPending ? 'Saving…' : isEditing ? 'Save changes' : 'Save allocation'}
       </button>
 
-      {/* Override confirmation */}
-      {overridePrompt && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 animate-fade-in" onClick={() => setOverridePrompt(null)}>
-          <div className="mx-6 max-w-sm rounded-2xl border border-line bg-card p-5 animate-fade-in-scale" onClick={e => e.stopPropagation()}>
-            <p className="font-sora text-sm font-semibold text-amber mb-2">Override existing allocation?</p>
-            <p className="font-dm text-sm text-soft leading-relaxed mb-4">
-              This will replace the existing allocation for <span className="text-white">{overridePrompt.goal}</span> with{' '}
-              <span className="text-white">{fmtAmt(parseFloat(overridePrompt.amount))}</span>.
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => doSave(overridePrompt, true)}
-                className="flex-1 rounded-xl bg-amber py-3 font-sora text-sm font-semibold text-white hover:opacity-90">
-                Override
-              </button>
-              <button onClick={() => setOverridePrompt(null)}
-                className="flex-1 rounded-xl border border-line py-3 font-dm text-sm text-soft hover:text-white">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+      {isEditing && (
+        <button type="button" onClick={() => setConfirmDelete(true)}
+          className="w-full rounded-xl bg-red/10 border border-red/30 py-3.5 font-dm text-sm font-medium text-red hover:bg-red/20">
+          Delete allocation
+        </button>
       )}
     </form>
   )
@@ -365,7 +468,6 @@ const shareSchema = z.object({
   date:      z.string().min(1, 'Pick a date'),
   from_goal: z.string().min(1, 'Select a source goal'),
   to_goal:   z.string().min(1, 'Select a destination goal'),
-  // 🎯 Updated restriction: amount must be positive or zero (>= 0)
   amount:    z.string().min(1, 'Enter an amount')
     .refine(v => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, { message: 'Amount must be 0 or greater' }),
   note:      z.string().optional(),
@@ -464,7 +566,7 @@ function ShareTab({ initialDate, onDone }: { initialDate?: string; onDone: () =>
           type="number" 
           inputMode="decimal" 
           step="0.01" 
-          min="0" // 🎯 Kept min="0" to natively block negative input fields for Shares
+          min="0"
           placeholder="0.00"
           {...register('amount')} 
           className={cn(
